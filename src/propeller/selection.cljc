@@ -21,9 +21,54 @@
                        survivors)
                (rest cases))))))
 
+
+(defn refined-lexicase-selection
+  "Selects an individual from the population using refined lexicase selection."
+  [pop argmap]
+  (let [initial-population (map rand-nth (vals (group-by :errors pop)))
+        survivor-score-map 
+        (repeatedly 
+         (:rlexicase-samples argmap) 
+         (fn [] (loop [survivors initial-population
+                       cases (shuffle (range (count (:errors (first pop)))))
+                       depth-counter 0]
+                  (if (or (empty? cases)
+                          (empty? (rest survivors)))
+                    (assoc {} :survivor (rand-nth survivors) :depth depth-counter)
+                    (let [min-err-for-case (apply min (map #(nth % (first cases))
+                                                           (map :errors survivors)))]
+                      (recur (filter #(= (nth (:errors %) (first cases)) min-err-for-case)
+                                     survivors)
+                             (rest cases)
+                             (inc depth-counter)))))))]
+    (:survivor (apply max-key :depth survivor-score-map))))
+
+(defn reverse-refined-lexicase-selection
+  "Selects an individual from the population using reverse refined lexicase selection."
+  [pop argmap]
+  (let [initial-population (map rand-nth (vals (group-by :errors pop)))
+        survivor-score-map
+        (repeatedly
+         (:rlexicase-samples argmap)
+         (fn [] (loop [survivors initial-population
+                       cases (shuffle (range (count (:errors (first pop)))))
+                       depth-counter 0]
+                  (if (or (empty? cases)
+                          (empty? (rest survivors)))
+                    (assoc {} :survivor (rand-nth survivors) :depth depth-counter)
+                    (let [min-err-for-case (apply min (map #(nth % (first cases))
+                                                           (map :errors survivors)))]
+                      (recur (filter #(= (nth (:errors %) (first cases)) min-err-for-case)
+                                     survivors)
+                             (rest cases)
+                             (inc depth-counter)))))))]
+    (:survivor (apply min-key :depth survivor-score-map))))
+
 (defn select-parent
   "Selects a parent from the population using the specified method."
   [pop argmap]
   (case (:parent-selection argmap)
     :tournament (tournament-selection pop argmap)
-    :lexicase (lexicase-selection pop argmap)))
+    :lexicase (lexicase-selection pop argmap)
+    :rlexicase (refined-lexicase-selection pop argmap)
+    :rrlexicase (reverse-refined-lexicase-selection pop argmap)))
