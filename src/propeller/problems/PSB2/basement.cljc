@@ -70,10 +70,11 @@
        :training-data           (:train train-and-test-data)
        :testing-data            (:test train-and-test-data)
        :max-generations         300
-       :population-size         1000
+       :population-size         10
        :max-initial-plushy-size 250
        :step-limit              2000
-       :parent-selection        :lexicase
+       :parent-selection        :rlexicase
+       :rlexicase-samples       3
        :tournament-size         5
        :umad-rate               0.1
        :variation               {:umad 1.0 :crossover 0.0}
