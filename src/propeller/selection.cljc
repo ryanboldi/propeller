@@ -21,6 +21,13 @@
                        survivors)
                (rest cases))))))
 
+(defn get-new-case-sample
+  [sample-size all-data]
+  (let [all-data-size (count (:inputs all-data))
+        selected-indices (take sample-size (shuffle (range all-data-size)))]
+    (hash-map :inputs (map #(nth (:inputs all-data) %) selected-indices)
+              :outputs (map #(nth (:outputs all-data) %) selected-indices))))
+
 
 (defn refined-lexicase-selection
   "Selects an individual from the population using refined lexicase selection."
@@ -79,5 +86,6 @@
   (case (:parent-selection argmap)
     :tournament (tournament-selection pop argmap)
     :lexicase (lexicase-selection pop argmap)
+    :rolling-lexicase (rolling-lexicase-selection pop argmap)
     :rlexicase (refined-lexicase-selection pop argmap)
     :rrlexicase (reverse-refined-lexicase-selection pop argmap)))
