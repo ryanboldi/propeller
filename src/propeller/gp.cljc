@@ -47,10 +47,11 @@
   (loop [generation 0
          population (mapper
                       (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
-                      (range population-size))]
+                      (range population-size))
+         case-sample (:training-data argmap)]
     (let [evaluated-pop (sort-by :total-error
                                  (mapper
-                                   (partial error-function argmap (:training-data argmap))
+                                   (partial error-function argmap case-sample) ;applies error function on current sample of data
                                    population))
           best-individual (first evaluated-pop)]
       (if (:custom-report argmap)

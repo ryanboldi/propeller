@@ -22,11 +22,17 @@
                (rest cases))))))
 
 (defn get-new-case-sample
+(defn get-new-case-sample-indices
   [sample-size all-data]
   (let [all-data-size (count (:inputs all-data))
         selected-indices (take sample-size (shuffle (range all-data-size)))]
-    (hash-map :inputs (map #(nth (:inputs all-data) %) selected-indices)
-              :outputs (map #(nth (:outputs all-data) %) selected-indices))))
+    ;
+    selected-indices)); for now, we just return the indices of the cases in sample
+(defn get-cases-from-indices
+  [selected-indices all-data]
+  "converts a set of indices into an input->output map"
+  (hash-map :inputs (map #(nth (:inputs all-data) %) selected-indices)
+          :outputs (map #(nth (:outputs all-data) %) selected-indices)))
 
 
 (defn refined-lexicase-selection
