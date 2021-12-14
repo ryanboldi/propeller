@@ -1,4 +1,5 @@
-(ns propeller.selection)
+(ns propeller.selection
+  (:require [clojure.set :as s]))
 
 (defn tournament-selection
   "Selects an individual from the population using a tournament."
@@ -21,19 +22,39 @@
                        survivors)
                (rest cases))))))
 
-(defn get-new-case-sample
+(defn rolling-lexicase-selection
+  "Selects an individual from the population using Rolling Lexicase Selection"
+  [pop argmap]
+  (println "argmap:" argmap)
+  ;(rand-nth pop)
+  )
+
 (defn get-new-case-sample-indices
+  "returns a list of sample-size random case indices from the training data"
   [sample-size all-data]
   (let [all-data-size (count (:inputs all-data))
         selected-indices (take sample-size (shuffle (range all-data-size)))]
     ;
     selected-indices)); for now, we just return the indices of the cases in sample
+
 (defn get-cases-from-indices
-  [selected-indices all-data]
   "converts a set of indices into an input->output map"
+  [selected-indices all-data]
   (hash-map :inputs (map #(nth (:inputs all-data) %) selected-indices)
           :outputs (map #(nth (:outputs all-data) %) selected-indices)))
 
+(defn change-case-sample-indices
+  [current-sample-indices all-data step-size queue?]
+  (let [data-range (range (count (:inputs all-data)))
+        unused-cases (into '() (s/difference (set data-range) (set current-sample-indices)))
+        current-sample-before-drop (if queue?
+                                     (vec current-sample-indices)
+                                     (shuffle current-sample-indices))
+        current-sample-after-drop (drop-last step-size current-sample-before-drop)
+        current-sample-after-add (apply conj 
+                                        current-sample-after-drop 
+                                        (repeatedly step-size #(rand-nth unused-cases)))]
+    current-sample-after-add))
 
 (defn refined-lexicase-selection
   "Selects an individual from the population using refined lexicase selection."
