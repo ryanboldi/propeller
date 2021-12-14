@@ -25,9 +25,8 @@
 (defn rolling-lexicase-selection
   "Selects an individual from the population using Rolling Lexicase Selection"
   [pop argmap]
-  (println "argmap:" argmap)
-  ;(rand-nth pop)
-  )
+  (lexicase-selection pop argmap))
+;;uses regular lexicase but argmap changes setting
 
 (defn get-new-case-sample-indices
   "returns a list of sample-size random case indices from the training data"

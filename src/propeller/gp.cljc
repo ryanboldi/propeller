@@ -3,6 +3,7 @@
             [clojure.pprint]
             [propeller.genome :as genome]
             [propeller.variation :as variation]
+            [propeller.selection :as selection]
             [propeller.push.instructions.bool]
             [propeller.push.instructions.character]
             [propeller.push.instructions.code]
@@ -27,7 +28,6 @@
                             :behavioral-diversity  (float (/ (count (distinct (map :behaviors pop))) (count pop)))
                             :average-genome-length (float (/ (reduce + (map count (map :plushy pop))) (count pop)))
                             :average-total-error   (float (/ (reduce + (map :total-error pop)) (count pop)))
-                            ;:average-depth         (float (/ (reduce + (map :selection-depth pop)) (count pop))) not able to get this to work
                             })
     (println)))
 
@@ -48,10 +48,11 @@
          population (mapper
                       (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
                       (range population-size))
-         case-sample (:training-data argmap)]
+         case-indices (selection/get-new-case-sample-indices (:downsample-size argmap) (:training-data argmap))]
     (let [evaluated-pop (sort-by :total-error
                                  (mapper
-                                   (partial error-function argmap case-sample) ;applies error function on current sample of data
+                                   (partial error-function argmap 
+                                            (selection/get-cases-from-indices case-indices (:training-data argmap))) ;applies error function on current sample of data
                                    population))
           best-individual (first evaluated-pop)]
       (if (:custom-report argmap)
@@ -73,4 +74,8 @@
                                          #(variation/new-individual evaluated-pop argmap))
                              (first evaluated-pop))
                        (repeatedly population-size
-                                   #(variation/new-individual evaluated-pop argmap))))))))
+                                   #(variation/new-individual evaluated-pop argmap)))
+                     (selection/change-case-sample-indices case-indices 
+                                                           (:training-data argmap)
+                                                           (:case-step argmap)
+                                                           (:case-queue? argmap)))))))
