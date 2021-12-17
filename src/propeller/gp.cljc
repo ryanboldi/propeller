@@ -48,13 +48,16 @@
          population (mapper
                       (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
                       (range population-size))
-         case-indices (selection/get-new-case-sample-indices (:downsample-size argmap) (:training-data argmap))]
+         case-indices (if (not= (:parent-selection argmap) :rolling-lexicase)
+                        (range (count (:inputs (:training-data argmap))))
+                        (selection/get-new-case-sample-indices (:downsample-size argmap) (:training-data argmap)))]
     (let [evaluated-pop (sort-by :total-error
                                  (mapper
                                    (partial error-function argmap 
                                             (selection/get-cases-from-indices case-indices (:training-data argmap))) ;applies error function on current sample of data
                                    population))
           best-individual (first evaluated-pop)]
+      (println case-indices)
       (if (:custom-report argmap)
         ((:custom-report argmap) evaluated-pop generation argmap)
         (report evaluated-pop generation argmap))
@@ -75,7 +78,9 @@
                              (first evaluated-pop))
                        (repeatedly population-size
                                    #(variation/new-individual evaluated-pop argmap)))
-                     (selection/change-case-sample-indices case-indices 
-                                                           (:training-data argmap)
-                                                           (:case-step argmap)
-                                                           (:case-queue? argmap)))))))
+                     (if (not= (:parent-selection argmap) :rolling-lexicase)
+                       case-indices
+                       (selection/change-case-sample-indices case-indices
+                                                             (:training-data argmap)
+                                                             (:case-step argmap)
+                                                             (:case-queue? argmap))))))))
