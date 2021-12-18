@@ -31,20 +31,23 @@
 (defn get-new-case-sample-indices
   "returns a list of sample-size random case indices from the training data"
   [sample-size all-data]
-  (let [all-data-size (count (:inputs all-data))
+  (let [all-data-size (count
+                       (if (seq? all-data) all-data (:inputs all-data)))
         selected-indices (take sample-size (shuffle (range all-data-size)))]
-    ;
     selected-indices)); for now, we just return the indices of the cases in sample
 
 (defn get-cases-from-indices
   "converts a set of indices into an input->output map"
   [selected-indices all-data]
-  (hash-map :inputs (map #(nth (:inputs all-data) %) selected-indices)
-          :outputs (map #(nth (:outputs all-data) %) selected-indices)))
+  (if (seq? all-data)
+    (map #(nth all-data %) selected-indices)
+    (hash-map :inputs (map #(nth (:inputs all-data) %) selected-indices)
+              :outputs (map #(nth (:outputs all-data) %) selected-indices))))
 
 (defn change-case-sample-indices
   [current-sample-indices all-data step-size queue?]
-  (let [data-range (range (count (:inputs all-data)))
+  (let [data-range (range 
+                    (count (if (seq? all-data) all-data (:inputs all-data))))
         unused-cases (into '() (s/difference (set data-range) (set current-sample-indices)))
         current-sample-before-drop (if queue?
                                      (vec current-sample-indices)

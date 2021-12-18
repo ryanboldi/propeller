@@ -49,21 +49,38 @@
                       (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
                       (range population-size))
          case-indices (if (not= (:parent-selection argmap) :rolling-lexicase)
-                        (range (count (:inputs (:training-data argmap))))
+                        (range (count
+                                (if (seq? (:training-data argmap)) (:training-data argmap) (:inputs (:training-data argmap)))))
                         (selection/get-new-case-sample-indices (:downsample-size argmap) (:training-data argmap)))]
+    (println case-indices)
+    (println (selection/get-cases-from-indices case-indices (:training-data argmap)))
     (let [evaluated-pop (sort-by :total-error
                                  (mapper
-                                   (partial error-function argmap 
-                                            (selection/get-cases-from-indices case-indices (:training-data argmap))) ;applies error function on current sample of data
-                                   population))
-          best-individual (first evaluated-pop)]
-      (println case-indices)
+                                  (partial error-function argmap
+                                           (selection/get-cases-from-indices case-indices (:training-data argmap))) ;applies error function on current sample of data
+                                  population))
+          best-individual (first evaluated-pop)
+          ds-below-thresh (and (= (:parent-selection argmap) :rolling-lexicase)
+                               (<= (:total-error best-individual) solution-error-threshold))
+          tot-evaluated-pop (if ds-below-thresh
+                              (sort-by :total-error
+                                       (mapper
+                                        (partial error-function argmap (:training-data argmap))
+                                        population))
+                              nil)
+          tot-best-individual (if ds-below-thresh (first tot-evaluated-pop) nil)]
+      (prn {:best-individual best-individual})
       (if (:custom-report argmap)
         ((:custom-report argmap) evaluated-pop generation argmap)
         (report evaluated-pop generation argmap))
+      (if (and ds-below-thresh (not (<= (:total-error tot-best-individual) solution-error-threshold)))
+        (prn {:semi-success-generation generation})
+        nil)
       (cond
         ;; Success on training cases is verified on testing cases
-        (<= (:total-error best-individual) solution-error-threshold)
+        (or (and ds-below-thresh (<= (:total-error tot-best-individual) solution-error-threshold))
+            (and (not= (:parent-selection argmap) :rolling-lexicase)
+                 (<= (:total-error best-individual) solution-error-threshold)))
         (do (prn {:success-generation generation})
             (prn {:total-test-error
                   (:total-error (error-function argmap (:testing-data argmap) best-individual))}))
