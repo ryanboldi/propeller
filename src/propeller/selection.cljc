@@ -55,7 +55,7 @@
         current-sample-after-drop (drop-last step-size current-sample-before-drop)
         current-sample-after-add (apply conj 
                                         current-sample-after-drop 
-                                        (repeatedly step-size #(rand-nth unused-cases)))]
+                                        (take step-size (shuffle unused-cases)))]
     current-sample-after-add))
 
 (defn refined-lexicase-selection
