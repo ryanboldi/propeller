@@ -46,12 +46,13 @@
   ;;
   (loop [generation 0
          population (mapper
-                      (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
-                      (range population-size))
+                     (fn [_] {:plushy (genome/make-random-plushy instructions max-initial-plushy-size)})
+                     (range population-size))
          case-indices (if (not= (:parent-selection argmap) :rolling-lexicase)
                         (range (count
                                 (if (seq? (:training-data argmap)) (:training-data argmap) (:inputs (:training-data argmap)))))
-                        (selection/get-new-case-sample-indices (:downsample-size argmap) (:training-data argmap)))]
+                        (selection/get-new-case-sample-indices (:downsample-size argmap) (:training-data argmap)))
+         used-cases '()]
     (println case-indices)
     (println (selection/get-cases-from-indices case-indices (:training-data argmap)))
     (let [evaluated-pop (sort-by :total-error
@@ -88,16 +89,28 @@
         (>= generation max-generations)
         nil
         ;;
-        :else (recur (inc generation)
-                     (if (:elitism argmap)
-                       (conj (repeatedly (dec population-size)
-                                         #(variation/new-individual evaluated-pop argmap))
-                             (first evaluated-pop))
-                       (repeatedly population-size
-                                   #(variation/new-individual evaluated-pop argmap)))
-                     (if (not= (:parent-selection argmap) :rolling-lexicase)
-                       case-indices
-                       (selection/change-case-sample-indices case-indices
-                                                             (:training-data argmap)
-                                                             (:case-step argmap)
-                                                             (:case-queue? argmap))))))))
+        :else (let [training-data-size (count (if (seq? (:training-data argmap)) (:training-data argmap) (:inputs (:training-data argmap))))
+                    new-used-cases (if (<= (- training-data-size  (count used-cases)) (:case-step argmap))
+                                     '()
+                                     (concat used-cases case-indices))
+                    new-case-indices (selection/change-case-sample-indices case-indices
+                                                                           (:training-data argmap)
+                                                                           (:case-step argmap)
+                                                                           (:case-queue? argmap)
+                                                                           new-used-cases
+                                                                           (:disjoint? argmap))]
+                (println "case-indices: " case-indices)
+                (println "used-cases: " used-cases)
+                (println "new-case-indices: " new-case-indices)
+                (println "new-used-cases: " new-used-cases)
+                (recur (inc generation)
+                       (if (:elitism argmap)
+                         (conj (repeatedly (dec population-size)
+                                           #(variation/new-individual evaluated-pop argmap))
+                               (first evaluated-pop))
+                         (repeatedly population-size
+                                     #(variation/new-individual evaluated-pop argmap)))
+                       (if (not= (:parent-selection argmap) :rolling-lexicase)
+                         case-indices
+                         new-case-indices)
+                       new-used-cases))))))

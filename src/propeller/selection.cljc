@@ -45,10 +45,12 @@
               :outputs (map #(nth (:outputs all-data) %) selected-indices))))
 
 (defn change-case-sample-indices
-  [current-sample-indices all-data step-size queue?]
+  [current-sample-indices all-data step-size queue? used-cases disjoint?]
   (let [data-range (range 
                     (count (if (seq? all-data) all-data (:inputs all-data))))
-        unused-cases (into '() (s/difference (set data-range) (set current-sample-indices)))
+        unused-cases (into '() (s/difference (set data-range) (set (if disjoint? 
+                                                                (s/union current-sample-indices used-cases)
+                                                                current-sample-indices))))
         current-sample-before-drop (if queue?
                                      (vec current-sample-indices)
                                      (shuffle current-sample-indices))
