@@ -35,12 +35,15 @@
 
 (defn gp
   "Main GP loop."
-  [{:keys [population-size max-generations error-function instructions
-           max-initial-plushy-size solution-error-threshold mapper ds-parent-rate ds-parent-gens dont-end ids-type downsample?]
+  [{:keys [population-size max-generations error-function instructions save-gens save-pref
+           max-initial-plushy-size solution-error-threshold mapper ds-parent-rate ds-parent-gens dont-end ids-type downsample? downsample-rate]
     :or   {solution-error-threshold 0.0
            dont-end false
            ds-parent-rate 0
            ds-parent-gens 1
+           downsample-rate 1
+           save-gens 200
+           save-pref "nop"
            ids-type :solved ; :solved or :elite
            downsample? false
            ;; The `mapper` will perform a `map`-like operation to apply a function to every individual
@@ -101,6 +104,11 @@
                        (prn {:total-test-error-simplified (:total-error (error-function argmap (:testing-data argmap) (hash-map :plushy simplified-plushy)))})))
                    (if dont-end false true))
                false)
+        nil
+        ;; save population to a file, and also distances
+        (do (if (= (mod generation save-gens) 0) 
+              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "full") "-" generation)]
+              (spit (str "./run-data/par-" save-pref "-" suffix ".edn") (pr-str evaluated-pop))) nil) false)
         nil
         ;;
         (and (not downsample?) (>= generation max-generations))
