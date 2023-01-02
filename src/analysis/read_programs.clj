@@ -8,8 +8,7 @@
             [propeller.selection :as sel]
             [propeller.utils :as u]
             [propeller.downsample :as ds]
-            [clojure.set :as set]
-            #?(:cljs [cljs.reader :refer [read-string]])))
+            [clojure.set :as set]))
 
 ; Questions I could answer:
 
@@ -31,11 +30,20 @@
 (defn get-train-data-from-prefix
   "prefix is something like co-50. We want to get co/train-data"
   [prefix]
-  (eval (symbol (str (get prefix 0) (get prefix 1) "/train-data"))))
+  (let [prf (str (get (str prefix) 0) (get (str prefix) 1))]
+    (cond (= prf "co") co/train-data
+          (= prf "sc") (:train sc/train-and-test-data)))
+    ;(eval (symbol (str (get (str prefix) 0) (get (str prefix) 1) "/train-data")))
+  )
 
 (defn get-error-fn-from-prefix
+  "prefix is something like co-50. We want to get co/error-function"
   [prefix]
-  (eval (symbol (str (get prefix 0) (get prefix 1) "/error-function"))))
+  (let [prf (str (get (str prefix) 0) (get (str prefix) 1))]
+    (cond (= prf "co") co/error-function
+          (= prf "sc") sc/error-function))
+    ;(eval (symbol (str (get (str prefix) 0) (get (str prefix) 1) "/train-data")))
+  )
 
 (defn initialise-cases
   "initializes cases distances to be maximally far away"
@@ -54,6 +62,42 @@
      (assoc ind :errors 
             (u/filter-by-index (:errors ind) (map #(:index %) downsample))))
    evald-pop))
+
+(defn update-distances
+  [cases evald-pop] 
+  (ds/update-case-distances evald-pop cases cases :solved))
+
+(defn sample-informed-ds
+  "creates n informed down-samples from an evaluated population. 
+   uses a new set of parent reps to generate each ds.
+   ds rate given by r and parent rate given by rho"
+  [n evald-pop cases r rho]
+    (repeatedly n 
+                #(let 
+                  [reps (take (* rho (count evald-pop)) (shuffle evald-pop))
+                   updated-cases (update-distances cases reps)]
+   (ds/select-downsample-maxmin updated-cases {:downsample-rate r}))))
+
+(defn sample-random-ds
+  "creates n random down-samples from an evaluated population. 
+   ds rate given by r"
+  [n cases r]
+    (repeatedly n #(ds/select-downsample-random cases {:downsample-rate r})))
+
+(defn coverage-ds
+  "Meaures the coverage of a list of down-samples (prop of all cases included)"
+  [dss]
+  (let [ds-indices (map #(map (fn [a] (:index a)) %) dss)
+        all-indices (set (flatten ds-indices))]
+    (/ (count all-indices) 200)))
+
+(for [r '(0.01 0.1)]
+  (let [n (* r 5)]
+    (+ n 1)
+    (+ n 2)))
+
+;lein run -m propeller.problems.PSB1.count-odds :parent-selection :lexicase :downsample? true :ds-function :case-maxmin :downsample-rate 0.1 :max-generations 300 
+; :ds-parent-rate 0.01 :ds-parent-gens 100 :save-gens 3 :save-pref "co-small-0" :population-size 6
 
 (defn -main
   "For each population starting with prefix, for each ds size in ds-size-list, for x given, for n given
@@ -75,93 +119,25 @@
                     :x 10
                     :n 100}
                    (apply hash-map (map #(if (string? %) (read-string %) %) args)))
-        gen 200 ; potentially should use gen 0, gen middle, and last gen
-        file (str "./run-data/par-" (:prefix arguments) "-lexicase-case-maxmin-0.05-0.01-100-" gen)
+        gen 27 ; potentially should use gen 0, gen middle, and last gen
+        file (str "./run-data/par-" (:prefix arguments) "-lexicase-case-maxmin-0.05-0.01-100-" gen ".edn")
         data (initialise-cases (get-train-data-from-prefix (:prefix arguments)))
-        err-func (get-error-fn-from-prefix (:prefix arguments))
-        individuals (evaluate-push-population {:step-limit 2000} data file err-func)
-        ])) 
-
-(def evaluated-population-sc
-  (evaluate-push-population 
-   {:step-limit 2000}
-   (:train sc/train-and-test-data)
-   "./run-data/parents-ds-0.1-0.01-100-200.edn" 
-   sc/error-function))
-
-(defn update-distances
-  [cases evald-pop] 
-  (ds/update-case-distances evald-pop cases cases :solved))
-
-(defn create-informed-ds 
-  "creates n informed down-samples from an evaluated population. 
-   uses a single set of parent reps to generate the distances.
-   ds rate given by r and parent rate given by rho"
-  [n evald-pop data r rho]
-  (let  [cases (intialize-cases data)
-    reps (take (* rho (count evald-pop)) (shuffle evald-pop))
-    updated-cases (update-distances cases reps)]
-   (repeatedly n #(ds/select-downsample-maxmin updated-cases {:downsample-rate r}))))
+        err-func (get-error-fn-from-prefix (str (:prefix arguments)))
+        individuals (evaluate-push-population {:step-limit 2000} data file err-func)]
+    (prn (for [r (:ds-size-list arguments)]
+      (let [full-info-ds (sample-informed-ds (:x arguments) individuals data r 1)
+            info-ds (sample-informed-ds (:x arguments) individuals data r 0.01)
+            rand-ds (sample-random-ds (:x arguments) data r)
+            coverage {:r r :full (coverage-ds full-info-ds) :info (coverage-ds info-ds) :rand (coverage-ds rand-ds)}]
+        coverage)))) )
 
 
-(defn sample-informed-ds
-  "creates n informed down-samples from an evaluated population. 
-   uses a new set of parent reps to generate each ds.
-   ds rate given by r and parent rate given by rho"
-  [n evald-pop data r rho]
-  (let  [cases (intialize-cases data)]
-    (repeatedly n 
-                #(let 
-                  [reps (take (* rho (count evald-pop)) (shuffle evald-pop))
-                   updated-cases (update-distances cases reps)]
-   (ds/select-downsample-maxmin updated-cases {:downsample-rate r})))))
- 
-
-(def cases (intialize-cases (:train sc/train-and-test-data)))
-
+(comment
 (let [reps (take (* 0.01 (count evaluated-population-sc)) (shuffle evaluated-population-sc))
                    updated-cases (update-distances cases reps)]
-   (ds/select-downsample-maxmin updated-cases {:downsample-rate 0.01}))
+   (ds/select-downsample-maxmin updated-cases {:downsample-rate 0.01})))
 
-
-(defn sample-random-ds
-  "creates n random down-samples from an evaluated population. 
-   ds rate given by "
-  [n data r]
-  (let  [cases (intialize-cases data)]
-    (repeatedly n #(ds/select-downsample-random cases {:downsample-rate r}))))
-
-
-(defn evaluate-push-population-small [argmap problem-data file err-func k]
-  "only loads first k parents from the file, for quick testing"
-  (map #(err-func argmap problem-data %) (take k (read-string (slurp file)))))
-
-
-(def evaluated-population-co
-  (evaluate-push-population-small
-   {:step-limit 2000}
-   co/train-data
-   "./run-data/par-co-19-lexicase-case-maxmin-0.05-0.01-100-300.edn"
-   co/error-function
-   10))
-; works, but is really slow
-
-(def evaluated-population-sc
-  (evaluate-push-population 
-   {:step-limit 2000}
-   (:train sc/train-and-test-data)
-   "./run-data/parents-ds-0.1-0.01-100-200.edn" 
-   sc/error-function))
-
-(defn coverage-ds
-  "Meaures the coverage of a list of down-samples (prop of all cases included)"
-  [dss]
-  (let [ds-indices (map #(map (fn [a] (:index a)) %) dss)
-        all-indices (set (flatten ds-indices))]
-    (/ (count all-indices) 100)))
-
-evaluated-population-sc
-
+(comment 
 (coverage-ds (sample-informed-ds 10 evaluated-population-sc (:train sc/train-and-test-data) 0. 0.1))
 ;18/50
 
@@ -247,4 +223,5 @@ updated-cases
     (/ numerator denom)))
 
 (jaccard new-pop-mmds new-pop-full)
-(jaccard new-pop-rds new-pop-full)
+(jaccard new-pop-rds new-pop-full))
+)
