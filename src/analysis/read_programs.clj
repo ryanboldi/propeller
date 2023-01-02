@@ -117,9 +117,10 @@
                    {:prefix "par-co-"
                     :ds-size-list '(0.01 0.05 0.1 0.2 0.5)
                     :x 10
+                    :gen 27
                     :n 100}
                    (apply hash-map (map #(if (string? %) (read-string %) %) args)))
-        gen 27 ; potentially should use gen 0, gen middle, and last gen
+        gen (:gen arguments); potentially should use gen 0, gen middle, and last gen
         file (str "./run-data/par-" (:prefix arguments) "-lexicase-case-maxmin-0.05-0.01-100-" gen ".edn")
         data (initialise-cases (get-train-data-from-prefix (:prefix arguments)))
         err-func (get-error-fn-from-prefix (str (:prefix arguments)))
