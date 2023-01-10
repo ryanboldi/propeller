@@ -3,6 +3,7 @@
             [propeller.push.interpreter :as interpreter]
             [propeller.push.state :as state]
             [propeller.gp :as gp]
+            [propeller.tools.math :as math]
             [propeller.problems.PSB1.count-odds :as co]
             [propeller.problems.simple-classification :as sc] ;<--- important
             [propeller.selection :as sel]
@@ -91,6 +92,15 @@
         all-indices (set (flatten ds-indices))]
     (/ (count all-indices) 200)))
 
+(defn test-case-coverage
+  "% of the cases that are solved atleast once by an evaluated population"
+  [popu]
+  (let [psize (count popu)
+        errs (map :errors popu)
+        step-err (map #(map (fn [e] (math/step e)) %) errs)]
+    (apply + (map #(if (= psize %) 0 1) (apply map + step-err))))) ;place a 0 if nobody in the pop solves, 1 otherwise
+
+
 (for [r '(0.01 0.1)]
   (let [n (* r 5)]
     (+ n 1)
@@ -121,7 +131,7 @@
                     :n 100}
                    (apply hash-map (map #(if (string? %) (read-string %) %) args)))
         gen (:gen arguments); potentially should use gen 0, gen middle, and last gen
-        file (str "./run-data/par-" (:prefix arguments) "-lexicase-case-maxmin-0.05-0.01-100-" gen ".edn")
+        file (str "./run-data/par-" (:prefix arguments) "-lexicase-case-maxmin-0.1-0.01-100-" gen ".edn")
         data (initialise-cases (get-train-data-from-prefix (:prefix arguments)))
         err-func (get-error-fn-from-prefix (str (:prefix arguments)))
         individuals (evaluate-push-population {:step-limit 2000} data file err-func)]
