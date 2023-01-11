@@ -210,7 +210,7 @@
                     :n 1000}
                    (apply hash-map (map #(if (string? %) (read-string %) %) args)))
         gen (:gen arguments); potentially should use gen 0, gen middle, and last gen
-        file (str "./run-data/par-" (:prefix arguments) "-lexicase-case-maxmin-0.1-0.01-100-" gen ".edn")
+        file (str "./run-data/par-" (:prefix arguments) "-lexicase-case-maxmin-0.05-0.01-100-" gen ".edn")
         data (initialise-cases (get-train-data-from-prefix (:prefix arguments)))
         err-func (get-error-fn-from-prefix (str (:prefix arguments)))
         individuals (h/reindex-pop (evaluate-push-population {:step-limit 2000} data file err-func))]
