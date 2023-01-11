@@ -3,6 +3,7 @@
             [propeller.push.interpreter :as interpreter]
             [propeller.push.state :as state]
             [propeller.gp :as gp]
+            [propeller.hyperselection :as h]
             [propeller.tools.math :as math]
             [propeller.problems.PSB1.count-odds :as co]
             [propeller.problems.simple-classification :as sc] ;<--- important
@@ -64,6 +65,12 @@
             (u/filter-by-index (:errors ind) (map #(:index %) downsample))))
    evald-pop))
 
+(defn ds-eval->full-eval
+  "takes a population selected wtih downsampling and repopulates all the error vecs"
+  [full-pop evald-pop]
+  (let [indices (map #(:index %) evald-pop)]
+     (map #(nth full-pop %) indices)))
+
 (defn update-distances
   [cases evald-pop] 
   (ds/update-case-distances evald-pop cases cases :solved))
@@ -100,11 +107,83 @@
         step-err (map #(map (fn [e] (math/step e)) %) errs)]
     (apply + (map #(if (= psize %) 0 1) (apply map + step-err))))) ;place a 0 if nobody in the pop solves, 1 otherwise
 
+(defn select-population-with-ds
+  [evald-pop ds]
+  (let [ds-evald-pop (full-eval->ds-eval evald-pop ds)]
+    (repeatedly (count evald-pop) #(sel/lexicase-selection ds-evald-pop {}))))
 
-(for [r '(0.01 0.1)]
-  (let [n (* r 5)]
-    (+ n 1)
-    (+ n 2)))
+
+; from https://rosettacode.org/wiki/Entropy#Clojure
+(defn entropy [s]
+  (let [len (count s), log-2 (Math/log 2)]
+    (->> (frequencies s)
+         (map (fn [[_ v]]
+                (let [rf (/ v len)]
+                  (-> (Math/log rf) (/ log-2) (* rf) Math/abs))))
+         (reduce +))))
+
+(defn get-stats
+  "takes a list of numbers and returns a map of the stats: max, min, avg"
+  [li]
+  (let [maxi (apply max li)
+        mini (apply min li)
+        tot (apply + li)
+        avg (/ tot (count li))]
+    {:max maxi :min mini :avg avg}))
+
+(defn behavioral-entropy
+  [pop]
+  (->> pop
+       (map #(:errors %))
+       entropy))
+
+(defn phenotypic-entropy
+  [pop]
+  (->> pop
+       (map #(:plushy %))
+       entropy))
+
+(defn id-entropy
+  [pop]
+  (->> pop
+       (map #(:index %))
+       entropy))
+
+(def ind 
+  (h/reindex-pop (->> "./run-data/parents-ds-0.1-0.01-100-0.edn"
+       slurp
+       read-string)))
+
+;(ds-eval->full-eval ind (full-eval->ds-eval (list (first ind)) '({:index 1})))
+
+(defn unique-individuals
+  "number of unique individuals in a pop (based on ID)"
+  [pop]
+  (->> pop
+       (map #(:index %))
+       set
+       count))
+
+(defn unique-phenotypes
+  "number of unique phenotypes in a pop (based on plsuhy)"
+  [pop]
+  (->> pop
+       (map #(:plushy %))
+       set
+       count))
+
+(defn min-aggregate-error
+  "best aggregate score of a population"
+  [pop]
+  (->> pop
+       (map #(:total-error %))
+       (apply min)))
+
+
+;(unique-individuals '({:index 0} {:index 1} {:index 0} {:index 3}))
+
+;(unique-phenotypes (list ind1 ind1))
+
 
 ;lein run -m propeller.problems.PSB1.count-odds :parent-selection :lexicase :downsample? true :ds-function :case-maxmin :downsample-rate 0.1 :max-generations 300 
 ; :ds-parent-rate 0.01 :ds-parent-gens 100 :save-gens 3 :save-pref "co-small-0" :population-size 6
@@ -125,102 +204,78 @@
   [& args]
   (let [arguments (merge
                    {:prefix "par-co-"
-                    :ds-size-list '(0.01 0.05 0.1 0.2 0.5)
+                    :ds-size-list '(0.05 0.1)
                     :x 10
                     :gen 27
-                    :n 100}
+                    :n 1000}
                    (apply hash-map (map #(if (string? %) (read-string %) %) args)))
         gen (:gen arguments); potentially should use gen 0, gen middle, and last gen
         file (str "./run-data/par-" (:prefix arguments) "-lexicase-case-maxmin-0.1-0.01-100-" gen ".edn")
         data (initialise-cases (get-train-data-from-prefix (:prefix arguments)))
         err-func (get-error-fn-from-prefix (str (:prefix arguments)))
-        individuals (evaluate-push-population {:step-limit 2000} data file err-func)]
-    (prn (for [r (:ds-size-list arguments)]
+        individuals (h/reindex-pop (evaluate-push-population {:step-limit 2000} data file err-func))]
+    (clojure.pprint/pprint (for [r (:ds-size-list arguments)]
       (let [full-info-ds (sample-informed-ds (:x arguments) individuals data r 1)
             info-ds (sample-informed-ds (:x arguments) individuals data r 0.01)
             rand-ds (sample-random-ds (:x arguments) data r)
-            coverage {:r r :full (coverage-ds full-info-ds) :info (coverage-ds info-ds) :rand (coverage-ds rand-ds)}]
-        coverage)))) )
+            coverage {:full (coverage-ds full-info-ds) :info (coverage-ds info-ds) :rand (coverage-ds rand-ds)}
+            test-case-coverage-before (test-case-coverage individuals)
+            ; for full, ids, rand. 
+            ; A list of 10 populations that are selected with 10 successive downsamples of each kind
+            ; to be used to measure population statistics
+            full-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) full-info-ds)
+            ids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) info-ds)
+            rand-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) rand-ds)
+            ;test case coverage
+            full-test-coverage (map #(test-case-coverage %) full-selections)
+            ids-test-coverage (map #(test-case-coverage %) ids-selections)
+            rand-test-coverage (map #(test-case-coverage %) rand-selections)
+            test-coverages {:before test-case-coverage-before :full full-test-coverage :ids ids-test-coverage :rand rand-test-coverage}
+            ; phenotypic and genotypic entropy before
+            ph-ent-before (phenotypic-entropy individuals)
+            be-ent-before (behavioral-entropy individuals)
+            id-ent-before (id-entropy individuals)
+            ; after selection
+            full-ph-ent (map #(phenotypic-entropy %) full-selections)
+            full-be-ent (map #(behavioral-entropy %) full-selections)
+            full-id-ent (map #(id-entropy %) full-selections)
+            ids-ph-ent (map #(phenotypic-entropy %) ids-selections)
+            ids-be-ent (map #(behavioral-entropy %) ids-selections)
+            ids-id-ent (map #(id-entropy %) ids-selections)
+            rand-ph-ent (map #(phenotypic-entropy %) rand-selections)
+            rand-be-ent (map #(behavioral-entropy %) rand-selections)
+            rand-id-ent (map #(id-entropy %) rand-selections)
+            be-entropies {:before be-ent-before :full full-be-ent :ids ids-be-ent :rand rand-be-ent}
+            ph-entropies {:before ph-ent-before :full full-ph-ent :ids ids-ph-ent :rand rand-ph-ent}
+            id-entropies {:before id-ent-before :full full-id-ent :ids ids-id-ent :rand rand-id-ent}
+            ;unique individuals selected
+            before-unq-i (unique-individuals individuals)
+            full-unq-i (map #(unique-individuals %) full-selections)
+            ids-unq-i (map #(unique-individuals %) ids-selections)
+            rand-unq-i (map #(unique-individuals %) rand-selections)
+            ;unique phenotypes
+            before-unq-p (unique-phenotypes individuals)
+            full-unq-p (map #(unique-phenotypes %) full-selections)
+            ids-unq-p (map #(unique-phenotypes %) ids-selections)
+            rand-unq-p (map #(unique-phenotypes %) rand-selections)
+            unq-i {:before before-unq-i :full full-unq-i :ids ids-unq-i :rand rand-unq-i} 
+            unq-p {:before before-unq-p :full full-unq-p :ids ids-unq-p :rand rand-unq-p} 
+            ;minimum agg err
+            before-min-err (min-aggregate-error individuals)
+            full-min-err (map #(min-aggregate-error %) full-selections)
+            ids-min-err (map #(min-aggregate-error %) ids-selections)
+            rand-min-err (map #(min-aggregate-error %) rand-selections)
+            min-err {:before before-min-err :full full-min-err :ids ids-min-err :rand rand-min-err}]
+        {:r r
+         :coverage coverage
+         :test-coverages test-coverages
+         :phenotypic-entropies ph-entropies
+         :behavioral-entropies be-entropies
+         :id-entropies id-entropies
+         :unique-individuals unq-i
+         :unique-phenotypes unq-p
+         :min-error min-err})))))
 
-
-(comment
-(let [reps (take (* 0.01 (count evaluated-population-sc)) (shuffle evaluated-population-sc))
-                   updated-cases (update-distances cases reps)]
-   (ds/select-downsample-maxmin updated-cases {:downsample-rate 0.01})))
-
-(comment 
-(coverage-ds (sample-informed-ds 10 evaluated-population-sc (:train sc/train-and-test-data) 0. 0.1))
-;18/50
-
-(coverage-ds (sample-random-ds 10 (:train sc/train-and-test-data) 0.05))
-;21/50
-
-(conj '(12/13) 12/13)
-
-; How does the coverage change with downsample size?
-(def coverages
-  (loop [i 1
-         cm '()
-         cr '()]
-    (if (>= i 100)
-      {:coverage-mm cm :coverage-cr cr}
-      (recur (+ i 5) (conj cm 
-                           (coverage-ds (sample-informed-ds 10 evaluated-population-sc (:train sc/train-and-test-data) (/ i 100) 1)))
-             (conj cr (coverage-ds (sample-random-ds 10 (:train sc/train-and-test-data) (/ i 100))))))))
-
-coverages
-
-(map #(float %) (reverse '(1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 99/100 1 1 99/100 1 49/50 97/100 1 99/100 49/50 19/20 19/20 19/20 47/50 9/10 22/25 83/100 21/25 79/100 17/25 16/25 57/100 11/25 3/10 19/100 0)))
-
-
-
-pop
-(def ind (first pop))
-
-co/train-data
-
-(defn eval-pop-co [pop]
-  (map #(co/error-function {:step-limit 2000} co/train-data %) pop))
-
-(def evald-pop (eval-pop-co pop))
-
-evald-pop
-
-
-(def cases 
-
-cases
-
-(def updated-cases )
-updated-cases
-
-
-(def mm-ds (ds/select-downsample-maxmin updated-cases {:downsample-rate 0.1}))
-(def r-ds (ds/select-downsample-random updated-cases {:downsample-rate 0.1}))
-
-(def eval-on-mmds (evaluate-push-population 
-   {:step-limit 2000}
-   mm-ds
-   "./run-data/parents-ds-0.1-0.01-100-200.edn" 
-   sc/error-function))
-
-(def eval-on-rds (evaluate-push-population 
-   {:step-limit 2000}
-   r-ds
-   "./run-data/parents-ds-0.1-0.01-100-200.edn" 
-   sc/error-function))
-
-(def eval-on-full (evaluate-push-population 
-   {:step-limit 2000}
-   (:train sc/train-and-test-data)
-   "./run-data/parents-ds-0.1-0.01-100-200.edn" 
-   sc/error-function))
-
-
-; select 10 individuals using the two ds strategies, and compare to a lot of lexicase selections
-(def new-pop-mmds (map #(:index %) (repeatedly 10 #(sel/lexicase-selection eval-on-mmds {}))))
-(def new-pop-rds (map #(:index %) (repeatedly 10 #(sel/lexicase-selection eval-on-rds {}))))
-(def new-pop-full (map #(:index %) (repeatedly 10000 #(sel/lexicase-selection eval-on-full {}))))
 
 (defn jaccard 
   "jaccard similarity of two lists, a and b. = | A ∩ B | / | A U B|"
@@ -232,7 +287,3 @@ updated-cases
         union (set/union A B)
         denom (count union)]
     (/ numerator denom)))
-
-(jaccard new-pop-mmds new-pop-full)
-(jaccard new-pop-rds new-pop-full))
-)
