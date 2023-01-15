@@ -107,8 +107,8 @@
         nil
         ;; save population to a file, and also distances
         (do (if (= (mod generation save-gens) 0) 
-              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "full") "-" generation)]
-              (spit (str "./run-data/par-" save-pref "-" suffix ".edn") (pr-str evaluated-pop))) nil) false)
+              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "-full") "-" generation)]
+              (spit (str "./run-data/par-" save-pref "-" suffix ".edn") (pr-str (hyperselection/reindex-pop evaluated-pop)))) nil) false)
         nil
         ;;
         (and (not downsample?) (>= generation max-generations))
@@ -124,10 +124,18 @@
                      (let [reindexed-pop (hyperselection/reindex-pop evaluated-pop)] ; give every individual an index for hyperselection loggin
                        (hyperselection/log-hyperselection-and-ret
                         (if (:elitism argmap)
-                         (conj (repeatedly (dec population-size) #(variation/new-individual reindexed-pop argmap))
-                                                                          (first reindexed-pop))
-                         (repeatedly population-size ;need to count occurance of each parent, and reset IDs
-                                                                                #(variation/new-individual reindexed-pop argmap)))))
+                          (let [new-pop (conj (repeatedly (dec population-size) #(variation/new-individual reindexed-pop argmap))
+                                              (first reindexed-pop))
+                                indices (apply list (map #(:index %) new-pop))]
+                            (if (= (mod generation save-gens) 0)
+                              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "full") "-" generation)]
+                                (spit (str "./run-data/sel-" save-pref "-" suffix ".edn") indices)) new-pop) new-pop)
+                         (let [new-pop (repeatedly population-size ;need to count occurance of each parent, and reset IDs
+                                                                                #(variation/new-individual reindexed-pop argmap))
+                               indices (apply list (map #(:index %) new-pop))]
+                            (if (= (mod generation save-gens) 0)
+                              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "full") "-" generation)]
+                                (spit (str "./run-data/sel-" save-pref "-" suffix ".edn") indices)) new-pop) new-pop))))
                      (if downsample?
                       (if (zero? (mod generation ds-parent-gens))
                         (downsample/update-case-distances rep-evaluated-pop indexed-training-data indexed-training-data ids-type) ; update distances every ds-parent-gens generations
