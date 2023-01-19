@@ -128,13 +128,13 @@
                                               (first reindexed-pop))
                                 indices (apply list (map #(:index %) new-pop))]
                             (if (= (mod generation save-gens) 0)
-                              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "full") "-" generation)]
+                              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "-full") "-" generation)]
                                 (spit (str "./run-data/sel-" save-pref "-" suffix ".edn") indices)) new-pop) new-pop)
                          (let [new-pop (repeatedly population-size ;need to count occurance of each parent, and reset IDs
                                                                                 #(variation/new-individual reindexed-pop argmap))
                                indices (apply list (map #(:index %) new-pop))]
                             (if (= (mod generation save-gens) 0)
-                              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "full") "-" generation)]
+                              (let [suffix (str (symbol (:parent-selection argmap)) (if downsample? (str "-" (symbol (:ds-function argmap)) "-" downsample-rate "-" ds-parent-rate "-" ds-parent-gens) "-full") "-" generation)]
                                 (spit (str "./run-data/sel-" save-pref "-" suffix ".edn") indices)) new-pop) new-pop))))
                      (if downsample?
                       (if (zero? (mod generation ds-parent-gens))
