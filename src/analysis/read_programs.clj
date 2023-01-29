@@ -6,6 +6,7 @@
             [propeller.hyperselection :as h]
             [propeller.tools.math :as math]
             [propeller.problems.PSB1.count-odds :as co]
+            [propeller.problems.PSB2.fizz-buzz :as fb]
             [propeller.problems.simple-classification :as sc] ;<--- important
             [propeller.selection :as sel]
             [propeller.utils :as u]
@@ -34,6 +35,7 @@
   [prefix]
   (let [prf (str (get (str prefix) 0) (get (str prefix) 1))]
     (cond (= prf "co") co/train-data
+          (= prf "fb") fb/train-data
           (= prf "sc") (:train sc/train-and-test-data)))
     ;(eval (symbol (str (get (str prefix) 0) (get (str prefix) 1) "/train-data")))
   )
@@ -43,6 +45,7 @@
   [prefix]
   (let [prf (str (get (str prefix) 0) (get (str prefix) 1))]
     (cond (= prf "co") co/error-function
+          (= prf "fb") fb/error-function
           (= prf "sc") sc/error-function))
     ;(eval (symbol (str (get (str prefix) 0) (get (str prefix) 1) "/train-data")))
   )
