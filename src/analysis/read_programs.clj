@@ -7,7 +7,7 @@
             [propeller.tools.math :as math]
             [propeller.problems.PSB1.count-odds :as co]
             [propeller.problems.PSB2.fizz-buzz :as fb]
-            [propeller.problems.small-or-large :as sl]
+            [propeller.problems.PSB1.small-or-large :as sl]
             [propeller.problems.simple-classification :as sc] ;<--- important
             [propeller.selection :as sel]
             [propeller.utils :as u]
