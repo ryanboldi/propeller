@@ -252,8 +252,8 @@
             lex-cases data
             ;
             coverage {:lex (coverage-ds lex-cases) :full (coverage-ds full-info-ds) :info (coverage-ds info-ds) 
-                      :e-ids (coverage-ds elite-ids) :e-fids (coverage elite-fids) :a-ids (coverage auto-ids-0)
-                      a-fids (coverage auto-fids-0) :rand (coverage-ds rand-ds)}
+                      :e-ids (coverage-ds elite-ids) :e-fids (coverage-ds elite-fids) :a-ids (coverage-ds auto-ids-0)
+                      a-fids (coverage-ds auto-fids-0) :rand (coverage-ds rand-ds)}
             test-case-coverage-before (test-case-coverage individuals)
             ; for full, ids, rand. 
             ; A list of 10 populations that are selected with 10 successive downsamples of each kind
