@@ -167,10 +167,10 @@
        (map #(:index %))
        entropy))
 
-(def ind 
-  (h/reindex-pop (->> "./run-data/parents-ds-0.1-0.01-100-0.edn"
-       slurp
-       read-string)))
+;(def ind 
+;  (h/reindex-pop (->> "./run-data/parents-ds-0.1-0.01-100-0.edn"
+;       slurp
+;       read-string)))
 
 ;(ds-eval->full-eval ind (full-eval->ds-eval (list (first ind)) '({:index 1})))
 
