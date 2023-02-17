@@ -13,7 +13,8 @@
             [propeller.push.instructions.numeric]
             [propeller.push.instructions.polymorphic]
             [propeller.push.instructions.string]
-            [propeller.push.instructions.vector]))
+            [propeller.push.instructions.vector]
+            [propeller.selection :as selection]))
 
 (defn report
   "Reports information each generation."
@@ -83,7 +84,10 @@
                                      (partial error-function argmap training-data)
                                      population))
           best-individual (first evaluated-pop)
-          best-individual-passes-ds (and downsample? (<= (:total-error best-individual) solution-error-threshold))]
+          best-individual-passes-ds (and downsample? (<= (:total-error best-individual) solution-error-threshold))
+          argmap (if (= (:parent-selection argmap) :epsilon-lexicase)
+                   (assoc argmap :epsilons (selection/epsilon-list evaluated-pop))
+                   argmap)]
       (if (:custom-report argmap)
         ((:custom-report argmap) evaluations evaluated-pop generation argmap)
         (report evaluations evaluated-pop generation argmap training-data))
@@ -138,6 +142,6 @@
                                 (spit (str "./run-data/sel-" save-pref "-" suffix ".edn") indices)) new-pop) new-pop))))
                      (if downsample?
                       (if (zero? (mod generation ds-parent-gens))
-                        (downsample/update-case-distances rep-evaluated-pop indexed-training-data indexed-training-data ids-type) ; update distances every ds-parent-gens generations
+                        (downsample/update-case-distances rep-evaluated-pop indexed-training-data indexed-training-data ids-type (/ solution-error-threshold (count indexed-training-data))) ; update distances every ds-parent-gens generations
                         indexed-training-data)
                        indexed-training-data))))))
