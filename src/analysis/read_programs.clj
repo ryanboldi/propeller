@@ -7,6 +7,7 @@
             [propeller.tools.math :as math]
             [propeller.problems.PSB1.count-odds :as co]
             [propeller.problems.PSB2.fizz-buzz :as fb]
+            [propeller.problems.small-or-large :as sl]
             [propeller.problems.simple-classification :as sc] ;<--- important
             [propeller.selection :as sel]
             [propeller.utils :as u]
@@ -36,6 +37,7 @@
   (let [prf (str (get (str prefix) 0) (get (str prefix) 1))]
     (cond (= prf "co") co/train-data
           (= prf "fb") fb/train-data
+          (= prf "sl") fb/train-data
           (= prf "sc") (:train sc/train-and-test-data)))
     ;(eval (symbol (str (get (str prefix) 0) (get (str prefix) 1) "/train-data")))
   )
@@ -46,7 +48,8 @@
   (let [prf (str (get (str prefix) 0) (get (str prefix) 1))]
     (cond (= prf "co") co/error-function
           (= prf "fb") fb/error-function
-          (= prf "sc") sc/error-function))
+          (= prf "sc") sc/error-function
+          (= prf "sl") sl/error-function))
     ;(eval (symbol (str (get (str prefix) 0) (get (str prefix) 1) "/train-data")))
   )
 
@@ -75,19 +78,31 @@
      (map #(nth full-pop %) indices)))
 
 (defn update-distances
-  [cases evald-pop] 
-  (ds/update-case-distances evald-pop cases cases :solved))
+  [cases evald-pop type] 
+  (ds/update-case-distances evald-pop cases cases type))
 
 (defn sample-informed-ds
   "creates n informed down-samples from an evaluated population. 
    uses a new set of parent reps to generate each ds.
    ds rate given by r and parent rate given by rho"
-  [n evald-pop cases r rho]
+  [n evald-pop cases r rho type]
     (repeatedly n 
                 #(let 
                   [reps (take (* rho (count evald-pop)) (shuffle evald-pop))
-                   updated-cases (update-distances cases reps)]
+                   updated-cases (update-distances cases reps type)]
    (ds/select-downsample-maxmin updated-cases {:downsample-rate r}))))
+
+(defn sample-auto-informed-ds
+  "creates n informed down-samples from an evaluated population. 
+   each of their own size
+   uses a new set of parent reps to generate each ds.
+   ds rate given by r and parent rate given by rho"
+  [n evald-pop cases rho delta]
+    (repeatedly n 
+                #(let 
+                  [reps (take (* rho (count evald-pop)) (shuffle evald-pop))
+                   updated-cases (update-distances cases reps type)]
+   (select-downsample-maxmin-adaptive updated-cases {:case-delta delta}))))
 
 (defn sample-random-ds
   "creates n random down-samples from an evaluated population. 
@@ -226,25 +241,42 @@
         err-func (get-error-fn-from-prefix (str (:prefix arguments)))
         individuals (h/reindex-pop (evaluate-push-population {:step-limit 2000} data file err-func))]
     (clojure.pprint/pprint (for [r (:ds-size-list arguments)]
-      (let [full-info-ds (sample-informed-ds (:x arguments) individuals data r 1)
-            info-ds (sample-informed-ds (:x arguments) individuals data r 0.01)
+      (let [; selection strategies
+            full-info-ds (sample-informed-ds (:x arguments) individuals data r 1 :solved)
+            info-ds (sample-informed-ds (:x arguments) individuals data r 0.01 :solved)
+            elite-ids (sample-informed-ds (:x arguments) individuals data r 0.01 :elite)
+            elite-fids (sample-informed-ds (:x arguments) individuals data r 1 :elite)
+            auto-ids-0 (sample-auto-informed-ds (:x arguments) individuals data 0.01 0)
+            auto-fids-0 (sample-auto-informed-ds (:x arguments) individuals data 1 0)
             rand-ds (sample-random-ds (:x arguments) data r)
             lex-cases data
-            coverage {:lex (coverage-ds lex-cases) :full (coverage-ds full-info-ds) :info (coverage-ds info-ds) :rand (coverage-ds rand-ds)}
+            ;
+            coverage {:lex (coverage-ds lex-cases) :full (coverage-ds full-info-ds) :info (coverage-ds info-ds) 
+                      :e-ids (coverage-ds elite-ids) :e-fids (coverage elite-fids) :a-ids (coverage auto-ids-0)
+                      a-fids (coverage auto-fids-0) :rand (coverage-ds rand-ds)}
             test-case-coverage-before (test-case-coverage individuals)
             ; for full, ids, rand. 
             ; A list of 10 populations that are selected with 10 successive downsamples of each kind
             ; to be used to measure population statistics
             full-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) full-info-ds)
             ids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) info-ds)
+            e-ids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) elite-ids)
+            e-fids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) elite-fids)
+            a-ids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) auto-ids-0)
+            a-fids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) auto-fids-0)
             rand-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) rand-ds)
             lex-selections (select-population-with-ds individuals lex-cases)
             ;test case coverage
             full-test-coverage (map #(test-case-coverage %) full-selections)
             ids-test-coverage (map #(test-case-coverage %) ids-selections)
+            e-ids-test-coverage (map #(test-case-coverage %) e-ids-selections)
+            e-fids-test-coverage (map #(test-case-coverage %) e-fids-selections)
+            a-ids-test-coverage (map #(test-case-coverage %) a-ids-selections)
+            a-fids-test-coverage (map #(test-case-coverage %) a-fids-selections)
             rand-test-coverage (map #(test-case-coverage %) rand-selections)
             lex-test-coverage (test-case-coverage lex-selections)
-            test-coverages {:before test-case-coverage-before :full full-test-coverage :ids ids-test-coverage :rand rand-test-coverage :lex lex-test-coverage}
+            test-coverages {:before test-case-coverage-before :full full-test-coverage :ids ids-test-coverage :e-ids e-ids-test-coverage
+                            :e-fids e-fids-test-coverage :a-ids a-ids-test-coverage :a-fids a-fids-test-coverage :rand rand-test-coverage :lex lex-test-coverage}
             ; phenotypic and genotypic entropy before
             ph-ent-before (phenotypic-entropy individuals)
             be-ent-before (behavioral-entropy individuals)
@@ -292,8 +324,12 @@
             lex-min-error (min-aggregate-error lex-selections)
             full-min-err (map #(min-aggregate-error %) full-selections)
             ids-min-err (map #(min-aggregate-error %) ids-selections)
+            e-ids-min-err (map #(min-aggregate-error %) e-ids-selections)
+            e-fids-min-err (map #(min-aggregate-error %) e-fids-selections)
+            a-ids-min-err (map #(min-aggregate-error %) a-ids-selections)
+            a-fids-min-err (map #(min-aggregate-error %) a-fids-selections)
             rand-min-err (map #(min-aggregate-error %) rand-selections)
-            min-err {:before before-min-err :full full-min-err :ids ids-min-err :rand rand-min-err :lex lex-min-error}]
+            min-err {:before before-min-err :full full-min-err :ids ids-min-err :e-ids e-ids-min-err :e-fids e-fids-min-err :a-ids a-ids-min-err :a-fids a-fids-min-err :rand rand-min-err :lex lex-min-error}]
         {:r r
          :coverage coverage
          :test-coverages test-coverages
