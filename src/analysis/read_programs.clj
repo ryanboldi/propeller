@@ -102,7 +102,7 @@
                 #(let 
                   [reps (take (* rho (count evald-pop)) (shuffle evald-pop))
                    updated-cases (update-distances cases reps type)]
-   (select-downsample-maxmin-adaptive updated-cases {:case-delta delta}))))
+   (ds/select-downsample-maxmin-adaptive updated-cases {:case-delta delta}))))
 
 (defn sample-random-ds
   "creates n random down-samples from an evaluated population. 
