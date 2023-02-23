@@ -9,7 +9,7 @@
             [propeller.problems.PSB2.fizz-buzz :as fb]
             [propeller.problems.PSB1.small-or-large :as sl]
             [propeller.problems.PSB2.fuel-cost :as fc]
-            [propeller.problems.PSB1.gcd :as gc]
+            [propeller.problems.PSB2.gcd :as gc]
             [propeller.problems.simple-classification :as sc] ;<--- important
             [propeller.selection :as sel]
             [propeller.utils :as u]
