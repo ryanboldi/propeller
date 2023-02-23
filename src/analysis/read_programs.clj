@@ -97,7 +97,7 @@
    each of their own size
    uses a new set of parent reps to generate each ds.
    ds rate given by r and parent rate given by rho"
-  [n evald-pop cases rho delta]
+  [n evald-pop cases rho delta type]
     (repeatedly n 
                 #(let 
                   [reps (take (* rho (count evald-pop)) (shuffle evald-pop))
@@ -246,8 +246,10 @@
             info-ds (sample-informed-ds (:x arguments) individuals data r 0.01 :solved)
             elite-ids (sample-informed-ds (:x arguments) individuals data r 0.01 :elite)
             elite-fids (sample-informed-ds (:x arguments) individuals data r 1 :elite)
-            auto-ids-0 (sample-auto-informed-ds (:x arguments) individuals data 0.01 0)
-            auto-fids-0 (sample-auto-informed-ds (:x arguments) individuals data 1 0)
+            auto-ids-0 (sample-auto-informed-ds (:x arguments) individuals data 0.01 0 :solved)
+            auto-fids-0 (sample-auto-informed-ds (:x arguments) individuals data 1 0 :solved)
+            ae-ids-0 (sample-auto-informed-ds (:x arguments) individuals data 0.01 0 :elite)
+            ae-fids-0 (sample-auto-informed-ds (:x arguments) individuals data 1 0 :elite)
             rand-ds (sample-random-ds (:x arguments) data r)
             lex-cases data
             ;
@@ -264,6 +266,8 @@
             e-fids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) elite-fids)
             a-ids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) auto-ids-0)
             a-fids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) auto-fids-0)
+            ae-ids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) ae-ids-0)
+            ae-fids-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) ae-fids-0)
             rand-selections (map #(ds-eval->full-eval individuals (select-population-with-ds individuals %)) rand-ds)
             lex-selections (select-population-with-ds individuals lex-cases)
             ;test case coverage
@@ -273,10 +277,12 @@
             e-fids-test-coverage (map #(test-case-coverage %) e-fids-selections)
             a-ids-test-coverage (map #(test-case-coverage %) a-ids-selections)
             a-fids-test-coverage (map #(test-case-coverage %) a-fids-selections)
+            ae-ids-test-coverage (map #(test-case-coverage %) ae-ids-selections)
+            ae-fids-test-coverage (map #(test-case-coverage %) ae-fids-selections)
             rand-test-coverage (map #(test-case-coverage %) rand-selections)
             lex-test-coverage (test-case-coverage lex-selections)
             test-coverages {:before test-case-coverage-before :full full-test-coverage :ids ids-test-coverage :e-ids e-ids-test-coverage
-                            :e-fids e-fids-test-coverage :a-ids a-ids-test-coverage :a-fids a-fids-test-coverage :rand rand-test-coverage :lex lex-test-coverage}
+                            :e-fids e-fids-test-coverage :a-ids a-ids-test-coverage :a-fids a-fids-test-coverage :ae-ids ae-ids-test-coverage :ae-fids ae-fids-test-coverage :rand rand-test-coverage :lex lex-test-coverage}
             ; phenotypic and genotypic entropy before
             ph-ent-before (phenotypic-entropy individuals)
             be-ent-before (behavioral-entropy individuals)
@@ -327,9 +333,11 @@
             e-ids-min-err (map #(min-aggregate-error %) e-ids-selections)
             e-fids-min-err (map #(min-aggregate-error %) e-fids-selections)
             a-ids-min-err (map #(min-aggregate-error %) a-ids-selections)
-            a-fids-min-err (map #(min-aggregate-error %) a-fids-selections)
+            a-fids-min-err (map #(min-aggregate-error %) ae-fids-selections)
+            ae-ids-min-err (map #(min-aggregate-error %) ae-ids-selections)
+            ae-fids-min-err (map #(min-aggregate-error %) a-fids-selections)
             rand-min-err (map #(min-aggregate-error %) rand-selections)
-            min-err {:before before-min-err :full full-min-err :ids ids-min-err :e-ids e-ids-min-err :e-fids e-fids-min-err :a-ids a-ids-min-err :a-fids a-fids-min-err :rand rand-min-err :lex lex-min-error}]
+            min-err {:before before-min-err :full full-min-err :ids ids-min-err :e-ids e-ids-min-err :e-fids e-fids-min-err :a-ids a-ids-min-err :a-fids a-fids-min-err :ae-ids a-ids-min-err :ae-fids a-fids-min-err :rand rand-min-err :lex lex-min-error}]
         {:r r
          :coverage coverage
          :test-coverages test-coverages
