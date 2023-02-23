@@ -8,6 +8,8 @@
             [propeller.problems.PSB1.count-odds :as co]
             [propeller.problems.PSB2.fizz-buzz :as fb]
             [propeller.problems.PSB1.small-or-large :as sl]
+            [propeller.problems.PSB2.fuel-cost :as fc]
+            [propeller.problems.PSB1.gcd :as gc]
             [propeller.problems.simple-classification :as sc] ;<--- important
             [propeller.selection :as sel]
             [propeller.utils :as u]
@@ -37,7 +39,9 @@
   (let [prf (str (get (str prefix) 0) (get (str prefix) 1))]
     (cond (= prf "co") co/train-data
           (= prf "fb") fb/train-data
-          (= prf "sl") fb/train-data
+          (= prf "sl") sl/train-data
+          (= prf "fc") fc/train-data
+          (= prf "gc") gc/train-data
           (= prf "sc") (:train sc/train-and-test-data)))
     ;(eval (symbol (str (get (str prefix) 0) (get (str prefix) 1) "/train-data")))
   )
@@ -49,7 +53,9 @@
     (cond (= prf "co") co/error-function
           (= prf "fb") fb/error-function
           (= prf "sc") sc/error-function
-          (= prf "sl") sl/error-function))
+          (= prf "sl") sl/error-function
+          (= prf "fc") fc/error-function
+          (= prf "gc") gc/error-function))
     ;(eval (symbol (str (get (str prefix) 0) (get (str prefix) 1) "/train-data")))
   )
 
