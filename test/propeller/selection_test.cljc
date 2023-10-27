@@ -21,3 +21,10 @@
       (t/testing "when it has low error"
         (t/is (= (:index (s/fitness-proportionate-selection '({:index 22 :total-error 0}) {:empty :argmap}))
                  22))))))
+
+(t/deftest ifs-test
+  (t/testing "implicit fitness sharing"
+    (t/testing "should correctly update total-error"
+      (t/is (let [ret (s/assign-ifs-error-to-population '({:index 0 :total-error 0 :errors (0 0 0)}
+                                                          {:index 1 :total-error 0 :errors (1 1 1)}) {:empty :argmap})]
+              (< (:total-error (first ret)) (:total-error (second ret))))))))

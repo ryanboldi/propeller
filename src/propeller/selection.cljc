@@ -30,7 +30,7 @@
                        survivors)
                (rest cases))))))
 
-(defn fitness-proportionate-selection 
+(defn fitness-proportionate-selection
   "Selects an individual from the population using a fitness proportionate selection."
   [pop argmap]
   (let [pop-fits (->> pop ;convert from error to fitness, where fitness (probability) is (1/ (1+ tot_err))
@@ -38,7 +38,7 @@
         pop-total-fit (->> pop-fits
                            (map :fitness)
                            (reduce +))
-        random-num (* (rand) pop-total-fit) 
+        random-num (* (rand) pop-total-fit)
         sorted-by-fitness (->> pop-fits
                                (sort-by :fitness)
                                (reverse))]
@@ -102,6 +102,25 @@
                          survivors)
                  (rest cases)))))))
 
+(defn assign-ifs-error-to-population
+  "overwrites the :total_error of each individual with that weighted as perscribed by implicit fitness sharing."
+  [pop argmap]
+  (let [errors (map #(:errors %) pop)
+        max-errors (map #(apply max %) (apply map list errors))
+        normalized-error (map (fn [err] (map #(if (zero? %2) 1.0 (/ %1 %2)) err max-errors)) errors)
+        summed-reward-on-test-cases (map (fn [list-of-errors]
+                                           (reduce + (map #(- 1.0 %) list-of-errors)))
+                                         (apply map list normalized-error))
+        ifs-reward (map (fn [err] (apply + (map #(if (zero? %2) 1.0 (/ %1 %2))
+                                                (map #(- 1.0 %) err)
+                                                summed-reward-on-test-cases))) normalized-error)
+        ifs-err (map (fn [rew] (cond
+                  (< 1e20 rew) 0.0
+                  (zero? rew) 1e20
+                  (< 1e20 (/ 1.0 rew)) 1e20
+                  :else (/ 1.0 rew))) ifs-reward)]
+    (map #(assoc %1 :total-error %2) pop ifs-err)))
+
 (defn select-parent
   "Selects a parent from the population using the specified method."
   [pop argmap]
@@ -110,4 +129,5 @@
     :lexicase (lexicase-selection pop argmap)
     :roulette (fitness-proportionate-selection pop argmap)
     :epsilon-lexicase (epsilon-lexicase-selection pop argmap)
-    :motley-batch-lexicase (motley-batch-lexicase-selection pop argmap)))
+    :motley-batch-lexicase (motley-batch-lexicase-selection pop argmap)
+    :ifs (tournament-selection (assign-ifs-error-to-population pop argmap) argmap)))
