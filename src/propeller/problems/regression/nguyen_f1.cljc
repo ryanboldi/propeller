@@ -1,4 +1,16 @@
-(ns propeller.problems.complex-regression
+;; This file implements a version of the Nguyen-F1 symbolic regression problem, as described in various
+;; publications in the genetic programming literature including:
+;;
+;;   Makke, N., Chawla, S. Interpretable scientific discovery with symbolic regression: a review. 
+;;   Artif Intell Rev 57, 2 (2024). https://doi.org/10.1007/s10462-023-10622-0
+;;
+;; Note however that it may differ in some respects from the problem used elsewhere, for example
+;; in the data ranges and gentic programming function sets which are not always fully documented
+;; in the literature. For this reason, while this code can be used as an example and for comparing
+;; different configurations of the present system, results obtained with this code may not be directly
+;; comparable to those published in the literature.
+
+(ns propeller.problems.regression.nguyen-f1
   (:require [propeller.genome :as genome]
             [propeller.push.interpreter :as interpreter]
             [propeller.push.state :as state]
@@ -7,14 +19,13 @@
             #?(:cljs [cljs.reader :refer [read-string]])))
 
 (defn- target-function
-  "Target function: f(x) = (x^3 + 1)^3 + 1"
+  "Nguyen F1 = x^3 + x^2 + x"
   [x]
-  (let [x-new (+ (* x x x) 1)]
-    (+ (* x-new x-new x-new) 1)))
+  (+ (* x x x) (* x x) x))
 
 (def train-and-test-data
-  (let [train-inputs (range -4.0 4.0 0.25)
-        test-inputs (range -4.125 4.125 0.25)]
+  (let [train-inputs (range -4.0 4.0 0.1)
+        test-inputs (range -4.0 4.0 0.05)]
     {:train (map (fn [x] {:input1 (vector x) :output1 (vector (target-function x))}) train-inputs)
      :test (map (fn [x] {:input1 (vector x) :output1 (vector (target-function x))}) test-inputs)}))
 
@@ -23,13 +34,12 @@
         :float_add
         :float_subtract
         :float_mult
-        :float_quot
-        :float_eq
-        :exec_dup
-        :exec_if
-        'close
-        0
-        1))
+        :float_div
+        :float_sin
+        :float_cos
+        :float_tan
+        0.0
+        1.0))
 
 (defn error-function
   "Finds the behaviors and errors of an individual. The error is the absolute
@@ -67,20 +77,18 @@
   [& args]
   (gp/gp
    (merge
-    {:instructions             instructions
-     :error-function           error-function
-     :training-data            (:train train-and-test-data)
-     :testing-data             (:test train-and-test-data)
-     :max-generations          5000
-     :population-size          500
-     :max-initial-plushy-size  100
-     :step-limit               200
-     :parent-selection         :ds-lexicase
-     :ds-function              :case-maxmin
-     :downsample-rate          0.1
-     :case-t-size              20
-     :tournament-size          5
-     :umad-rate                0.1
-     :variation                {:umad 1.0 :crossover 0.0}
-     :elitism                  false}
+    {:instructions              instructions
+     :error-function            error-function
+     :training-data             (:train train-and-test-data)
+     :testing-data              (:test train-and-test-data)
+     :downsample?               false
+     :solution-error-threshold  0.1
+     :max-generations           300
+     :population-size           1000
+     :max-initial-plushy-size   50
+     :step-limit                100
+     :parent-selection          :epsilon-lexicase
+     :umad-rate                 0.05
+     :variation                 {:umad 1.0}
+     :simplification?           true}
     (apply hash-map (map #(if (string? %) (read-string %) %) args)))))

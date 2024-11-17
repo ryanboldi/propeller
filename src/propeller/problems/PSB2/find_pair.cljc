@@ -2,7 +2,6 @@
   (:require [psb2.core :as psb2]
             [propeller.genome :as genome]
             [propeller.push.interpreter :as interpreter]
-            [propeller.problems.data-creation :as dc]
             [propeller.utils :as utils]
             [propeller.push.instructions :refer [def-instruction get-stack-instructions]]
             [propeller.push.state :as state]
@@ -78,7 +77,7 @@
                             (math/abs (- (second correct-output) output-2)))))
                     correct-outputs outputs-1 outputs-2)]
     (assoc individual
-           :behavior outputs
+           :behaviors outputs
            :errors errors
            :total-error #?(:clj  (apply +' errors)
                            :cljs (apply + errors)))))

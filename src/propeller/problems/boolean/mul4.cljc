@@ -1,3 +1,5 @@
+;; EXPERIMENTAL: Code in this file is still under development. It may be broken. Expect changes.
+
 (ns propeller.problems.boolean.mul4
   (:require [propeller.genome :as genome]
             [propeller.push.interpreter :as interpreter]
@@ -31,9 +33,6 @@
                  (assoc product-bits (keyword (str "c" bit-index)) this-bit)
                  (- remainder (* (if this-bit  1 0) pow2))))))))
 
-#_(target-function false true false false false true false false)
-#_(target-function true true true true true true true true)
-
 (def train-and-test-data
   (let [bools [false true]]
     {:train (for [a3 bools
@@ -57,12 +56,6 @@
       (assoc-in (state/pop-stack state :boolean)
                 [:output :c7]
                 (state/peek-stack state :boolean)))))
-
-#_(interpreter/interpret-program
-   '(:set-c7) (assoc state/empty-state :output {:c7 :unset}) 1000)
-
-#_(interpreter/interpret-program
-   '(true :set-c7) (assoc state/empty-state :output {:c7 :unset}) 1000)
 
 (def-instruction
   :set-c6

@@ -1,3 +1,5 @@
+;; EXPERIMENTAL: Code in this file is still under development. It may be broken. Expect changes.
+
 (ns propeller.problems.boolean.mul3
   (:require [propeller.genome :as genome]
             [propeller.push.interpreter :as interpreter]
@@ -28,9 +30,6 @@
           (recur (dec bit-index)
                  (assoc product-bits (keyword (str "c" bit-index)) this-bit)
                  (- remainder (* (if this-bit  1 0) pow2))))))))
-
-#_(target-function false true false false false true)
-#_(target-function true true true true true)
 
 (def train-and-test-data
   (let [bools [false true]]
@@ -104,7 +103,6 @@
                 [:output :c0]
                 (state/peek-stack state :boolean)))))
 
-
 (def-instruction
   :c5
   ^{:stacks [:boolean :output]}
@@ -163,8 +161,8 @@
   :boolean_bufa
   ^{:stacks #{:boolean}}
   (fn [state]
-    (make-instruction state 
-                      (fn [b1 b2] b1) 
+    (make-instruction state
+                      (fn [b1 b2] b1)
                       [:boolean :boolean]
                       :boolean)))
 
@@ -172,9 +170,9 @@
   :boolean_nota
   ^{:stacks #{:boolean}}
   (fn [state]
-    (make-instruction state 
-                      (fn [b1 b2] (not b1)) 
-                      [:boolean :boolean] 
+    (make-instruction state
+                      (fn [b1 b2] (not b1))
+                      [:boolean :boolean]
                       :boolean)))
 
 
@@ -184,7 +182,7 @@
   (fn [state]
     (make-instruction state
                       (fn [b1 b2] (not (and b1 b2)))
-                      [:boolean :boolean] 
+                      [:boolean :boolean]
                       :boolean)))
 
 (def-instruction
@@ -224,8 +222,6 @@
         :c2 ;; defined here
         :c1 ;; defined here
         :c0 ;; defined here
-        
-        ;; BOOLEAN TAGGING?
 
         ;; Recommended by Kalkreuth et al: BUFa, NOTa, AND, OR, XOR, NAND, NOR, XNOR
         ;:boolean_bufa ;; defined here
@@ -298,47 +294,26 @@
   [& args]
   (gp/gp
    (merge
-    {:instructions             (concat instructions [:vary :protect]) ;; ah-umad
-     :error-function           error-function
-     :training-data            (:train train-and-test-data)
-     :testing-data             (:test train-and-test-data)
-     :max-generations          1000
-     :population-size          100
-     :max-initial-plushy-size  100
-     :step-limit               1000
-     :parent-selection         :lexicase
-     :downsample?              true
-     :ds-function              :case-rand
-     :downsample-rate          0.1
-     ;:parent-selection         :tournament
-     ;:parent-selection         :motley-batch-lexicase
-     ;:max-batch-size           [1 2 4 8 16 32 64 128 256]
-     ;:tournament-size          5
-     ;:umad-rate                0.09
-     :ah-umad-protect-rate     0.001 ;; ah-umad
-     :ah-umad-vary-rate        0.1 ;; ah-umad
-     :ah-umad-tournament-size  1 ;; ah-umad
-     ;:umad-rate                [1/2
-     ;                           1/4 1/4 
-     ;                           1/8 1/8 1/8  
-     ;                           1/16 1/16 1/16 1/16 
-     ;                           1/32 1/32 1/32 1/32 1/32 
-     ;                           1/64 1/64 1/64 1/64 1/64 1/64 
-     ;                           1/128 1/128 1/128 1/128 1/128 1/128 1/128 
-      ;                          1/256 1/256 1/256 1/256 1/256 1/256 1/256 1/256]
-     ;:alternation-rate         [1 1/2 1/4 1/8 1/16 1/32 1/64 1/128 1/256]
-     ;:alignment-deviation      [0 1 2 4 8 16 32 64 128]
-     :variation                {:ah-umad 1 ;; ah-umad
-                                :umad 0
-                                :alternation 0
-                                :reproduction 0
-                                :tail-aligned-crossover 0}
-     ;:diploid                  true
-     ;:variation                {:diploid-vumad 0.8
-     ;                           :diploid-uniform-silent-replacement 0.1
-     ;                           :diploid-flip 0.1}
-     ;:replacement-rate         0.01
-     ;:diploid-flip-rate        0.01
-     :elitism                  false
-     :single-thread-mode       false}
+    {:instructions               instructions
+     :error-function             error-function
+     :training-data              (:train train-and-test-data)
+     :testing-data               (:test train-and-test-data)
+     :max-generations            1000
+     :population-size            1000
+     :max-initial-plushy-size    100
+     :step-limit                 10000
+     :parent-selection           :lexicase
+     :downsample?                false
+     :ds-function                :case-rand
+     :downsample-rate            0.1
+     :umad-rate                  0.01
+     :variation                  {:umad 0
+                                  :bmx 0
+                                  :bmx-umad 1}
+     :single-thread-mode         false
+     :bmx?                       true
+     :bmx-exchange-rate          0.5
+     :bmx-gene-length-limit      10
+     :bmx-gap-change-probability 0.01
+     :bmx-complementary?         true}
     (apply hash-map (map #(if (string? %) (read-string %) %) args)))))

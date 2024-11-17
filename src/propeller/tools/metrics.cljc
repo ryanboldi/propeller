@@ -1,6 +1,7 @@
 (ns propeller.tools.metrics
   "Functions to measure things."
-  (:require [propeller.tools.math :as math]))
+  (:require [clojure.set]
+            [propeller.tools.math :as math]))
 
 (defn argmins
   "returns the indice(s) of the minimum value of a list. Could be more efficient, probably"
@@ -124,3 +125,16 @@
     (let [distance (levenshtein-distance seq1 seq2)
           max-distance (max (count seq1) (count seq2))]
       (math/div (- max-distance distance) max-distance))))
+
+(defn multiset-distance
+  "Returns the total of the differences between the counts of all items across 
+   the provided multisets."
+  [ms1 ms2]
+  (loop [total 0
+         remaining (clojure.set/union (set ms1) (set ms2))]
+    (if (empty? remaining)
+      total
+      (recur (+ total
+                (math/abs (- (count (filter (partial = (first remaining)) ms1))
+                             (count (filter (partial = (first remaining)) ms2)))))
+             (rest remaining)))))

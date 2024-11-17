@@ -1,7 +1,10 @@
 (ns propeller.utils
   "Useful functions."
   (:require [clojure.zip :as zip]
-            [clojure.repl :as repl]))
+            [clojure.repl :as repl]
+            [propeller.tools.metrics :as metrics]
+            [propeller.tools.math :as math]
+            [propeller.push.instructions.parentheses :as parentheses]))
 
 (defn filter-by-index
   "filters a collection by a list of indices"
@@ -47,12 +50,31 @@
 (defn random-instruction
   "Returns a random instruction from a supplied pool of instructions, evaluating
   ERC-producing functions to a constant literal."
-  [instructions]
-  (let [instruction (rand-nth instructions)]
-    (if (fn? instruction)
-      (instruction)
-      instruction)))
-
+  [instructions argmap]
+  (case (or (:closes argmap) :specified) 
+    :specified (let [instruction (rand-nth instructions)]
+                 (if (fn? instruction)
+                   (instruction)
+                   instruction))
+    :balanced (let [source (remove #(= % 'close) instructions)
+                    p (/ (apply + (filter identity
+                                          (map #(get parentheses/opens %) source)))
+                         (count source))]
+                (if (< (rand) p)
+                  'close
+                  (let [instruction (rand-nth source)]
+                    (if (fn? instruction)
+                      (instruction)
+                      instruction))))
+    :none (let [multi-block-instructions (set (filter (fn [i]
+                                                        (let [opens (get parentheses/opens i)]
+                                                          (and opens (> opens 1))))
+                                                      instructions))
+                source (remove (set (conj multi-block-instructions 'close)) instructions)
+                instruction (rand-nth source)]
+            (if (fn? instruction)
+              (instruction)
+              instruction))))
 
 (defn count-points
   "Returns the number of points in tree, where each atom and each pair of parentheses
@@ -151,3 +173,95 @@
   (if (coll? thing-or-collection)
     (rand-nth thing-or-collection)
     thing-or-collection))
+
+(defn pretty-map-println
+  "Takes a map and prints it, with each key/value pair on its own line."
+  [mp]
+  (print "{")
+  (let [mp-seq (seq mp)
+        [first-key first-val] (first mp-seq)]
+    (println (pr-str first-key first-val))
+    (doseq [[k v] (rest mp-seq)]
+      (println (str " " (pr-str k v)))))
+  (println "}"))
+
+(defn count-genes
+  "A utility for best match crossover (bmx). Returns the number of segments 
+   between (and before and after) instances of :gap."
+  [plushy]
+  (inc (count (filter #(= % :gap) plushy))))
+
+(defn extract-genes
+  "A utility for best match crossover (bmx). Returns the segments of the plushy
+   before/between/after instances of :gap."
+  [plushy]
+  (loop [genes []
+         current-gene []
+         remainder plushy]
+    (cond (empty? remainder)
+          (conj genes current-gene)
+          ;
+          (= (first remainder) :gap)
+          (recur (conj genes current-gene)
+                 []
+                 (rest remainder))
+          ;
+          :else
+          (recur genes
+                 (conj current-gene (first remainder))
+                 (rest remainder)))))
+
+(defn bmx-distance
+  "A utility function for bmx. Returns the distance between two plushies
+   computed as half of their multiset-distance plus their length difference."
+  [p1 p2]
+  (+ (* 0.5 (metrics/multiset-distance p1 p2))
+     (math/abs (- (count p1) (count p2)))))
+
+(defn remove-empty-genes
+  "A utility function for bmx-related genetic operators. Returns the provided
+   plushy with any empty genes (regions before/between/after instances of :gap)
+   removed."
+  [plushy]
+  (vec (flatten (interpose :gap (filter #(not (empty? %))
+                                        (extract-genes plushy))))))
+
+(defn break-up
+  "A utility function for bmx-related genetic operators. Returns the provided
+   :gap-free plushy with gaps randomly inserted to ensure that no gene is longer
+   than the provided limit. Will break just before an instruction that opens code
+   blocks or just after a close, unless there are no opportunities to do so"
+  [gene limit]
+  (if (> (count gene) limit)
+    (let [openers (map first
+                       (filter #(and (second %)
+                                     (not (zero? (second %))))
+                               parentheses/opens))
+          i (if (or (some (set openers) (rest gene))
+                    (some #{'close} (butlast gene)))
+              (rand-nth (filter identity
+                                (concat (map-indexed (fn [ix item]
+                                                       (if (some #{item} openers)
+                                                         (inc ix)
+                                                         nil))
+                                                     (rest gene))
+                                        (map-indexed (fn [ix item]
+                                                       (if (= item 'close)
+                                                         (inc ix)
+                                                         nil))
+                                                     (butlast gene)))))
+              (inc (rand-int (dec (count gene)))))]
+      (concat (break-up (take i gene) limit)
+              [:gap]
+              (break-up (drop i gene) limit)))
+    gene))
+
+(defn enforce-gene-length-limit
+  "A utility function for bmx-related genetic operators. Returns the provided
+   plushy with any over-length genes broken into non-empty pieces, recursively
+   until all genes obey the limit."
+  [plushy limit]
+  (flatten (interpose :gap
+                      (mapv (fn [gene]
+                              (break-up gene limit))
+                            (extract-genes plushy)))))

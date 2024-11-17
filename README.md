@@ -2,7 +2,11 @@
 
 Yet another Push-based genetic programming system in Clojure.
 
-Full documentation is at [https://lspector.github.io/propeller/](https://lspector.github.io/propeller/).
+Propeller is a component of several active research projects and it is subject to change as a part of these activities.
+
+See the git commit comments for guidance with respect to recent changes.
+
+Some documentation is available at [https://lspector.github.io/propeller/](https://lspector.github.io/propeller/), but this should be evaluated in the context of the commit messages and current source code.
 
 ## Usage
 
@@ -26,15 +30,15 @@ To start a run use `clj -M -m <namespace>` or
 `lein run -m <namespace>`, replacing `<namespace>` 
 with the actual namespace that you will find at the top of the problem file. 
 
-For example, you can run the simple-regression genetic programming problem with:
+For example, you can run the integer-regression genetic programming problem with:
 
 ```
-clj -M -m propeller.problems.simple-regression
+clj -M -m propeller.problems.regression.integer-regression
 ```
 or 
 
 ```
-lein run -m propeller.problems.simple-regression
+lein run -m propeller.problems.regression.integer-regression
 ```
 
 Additional command-line arguments may
@@ -42,13 +46,13 @@ be provided to override the default key/value pairs specified in the
 problem file, for example:
 
 ```
-clj -M -m propeller.problems.simple-regression :population-size 100
+clj -M -m propeller.problems.regression.integer-regression :population-size 100
 ```
 
 or
 
 ```
-lein run -m propeller.problems.simple-regression :population-size 100
+lein run -m propeller.problems.regression.integer-regression :population-size 100
 ```
 
 On Unix operating systems, including MacOS, you can use something
@@ -57,13 +61,13 @@ and to a text file (called `outfile` in this example):
 
 
 ```
-clj -M -m propeller.problems.simple-regression | tee outfile
+clj -M -m propeller.problems.regression.integer-regression | tee outfile
 ```
 
 or
 
 ```
-lein run -m propeller.problems.simple-regression | tee outfile
+lein run -m propeller.problems.regression.integer-regression | tee outfile
 ```
 
 If you want to provide command line arguments that include
@@ -74,13 +78,13 @@ value for the `:variation` argument, which is a clojure map
 containing curly brackets that may confuse your shell:
 
 ```
-clj -M -m propeller.problems.simple-regression :variation "{:umad 1.0}"
+clj -M -m propeller.problems.regression.integer-regression :variation "{:umad 1.0}"
 ```
 
 or
 
 ```
-lein run -m propeller.problems.simple-regression :variation "{:umad 1.0}"
+lein run -m propeller.problems.regression.integer-regression :variation "{:umad 1.0}"
 ```
 
 For many genetic operator hyperparameters, collections may be provided in place of single values. When this is done, a random element of the collection will be chosen (with each being equally likely) each time the operator is used. When specied at the command line, these collections will also have to be quoted, for example with `:umad-rate "[0.01 0.05 0.1]"` to mean that UMAD rates of 0.01, 0.05, and 0.1 can be used.
@@ -125,8 +129,9 @@ Calling `(-main)` will run the default genetic programming problem.
 
 ## Description
 
-Propel is an implementation of the Push programming 
-language and the PushGP genetic programming system in Clojure.
+Propeller is an implementation of the Push programming 
+language and the PushGP genetic programming system in Clojure, based
+on Tom Helmuth's little PushGP implementation [propel](https://github.com/thelmuth/propel).
 
 For more information on Push and PushGP see 
 [http://pushlanguage.org](http://pushlanguage.org).

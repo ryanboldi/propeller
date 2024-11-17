@@ -2,8 +2,7 @@
   (:require [clojure.test :as t]
             [propeller.utils :as u]
             [propeller.simplification :as s]
-            [propeller.downsample :as ds]
-            [propeller.hyperselection :as hs]))
+            [propeller.downsample :as ds]))
 
 (t/deftest first-non-nil-test
   (t/is (= 1 (u/first-non-nil '(1 2 3))))
@@ -25,7 +24,7 @@
 (t/deftest random-instruction-test
   (t/is
    (letfn [(instruct [] 1)]
-     (let [test (u/random-instruction [instruct 2])]
+     (let [test (u/random-instruction [instruct 2] {})]
        (if (= 1 test)
          true
          (= 2 test))))))
