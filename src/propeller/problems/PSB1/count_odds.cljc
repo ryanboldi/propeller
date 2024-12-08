@@ -14,6 +14,8 @@
 (def train-data (:train train-and-test-data))
 (def test-data (:test train-and-test-data))
 
+train-data
+
 ; Random integer between -100 and 100 (from smallest)
 (defn random-int [] (- (rand-int 201) 100))
 
