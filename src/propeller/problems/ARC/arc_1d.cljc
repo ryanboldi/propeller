@@ -9,7 +9,6 @@
    [propeller.push.interpreter :as interpreter]
    [propeller.push.state :as state]
    [propeller.utils :as utils]))
-
 (defn string-keys-to-symbols [map]
   (reduce #(assoc %1 (-> (key %2) keyword) (val %2)) {} map))
 
@@ -22,6 +21,13 @@
        (.listFiles)
        (map #(.getName %))
        (println))
+
+(defn train-and-test-from-file [file-path]
+  (->> file-path 
+       (str "1D-ARC/") 
+       (slurp)
+       (json/read-str)
+       (string-keys-to-symbols)))
 
 (def train-and-test-data
   (->> "./1D-ARC/dataset/1d_denoising_1c/1d_denoising_1c_0.json"
@@ -83,23 +89,32 @@
 (defn -main
   "runs the top-level genetic programming function, giving it a map of arguments with defaults that can be overridden from the command line or through a passed map."
   [& args]
-  (gp/gp
-   (merge
-    {:instructions            instructions
-     :error-function          error-function
-     :training-data           train-data
-     :testing-data            test-data
-     :case-t-size             (count train-data)
-     :ds-parent-rate          0
-     :ds-parent-gens          1
-     :max-generations         300
-     :population-size         1000
-     :max-initial-plushy-size 250
-     :step-limit              2000
-     :parent-selection        :lexicase
-     :downsample?             false
-     :tournament-size         5
-     :umad-rate               0.1
-     :variation               {:umad 1.0 :crossover 0.0}
-     :elitism                 false}
-    (apply hash-map (map #(if (string? %) (read-string %) %) args)))))
+  (let [file-path (nth args 0)
+        ;; Ensure file-path is a string before using it
+        file-path (if (string? file-path) file-path (str file-path))
+        _ (println "file-path: " file-path)
+        train-and-test-data (train-and-test-from-file file-path)
+        train-data (process-data (:train train-and-test-data))
+        test-data (process-data (:test train-and-test-data))
+        ;remove the file-path from args
+        args (rest args)]
+    (gp/gp
+     (merge
+      {:instructions            instructions
+       :error-function          error-function
+       :training-data           train-data
+       :testing-data            test-data
+       :case-t-size             (count train-data)
+       :ds-parent-rate          0
+       :ds-parent-gens          1
+       :max-generations         300
+       :population-size         1000
+       :max-initial-plushy-size 250
+       :step-limit              2000
+       :parent-selection        :lexicase
+       :downsample?             false
+       :tournament-size         5
+       :umad-rate               0.1
+       :variation               {:umad 1.0 :crossover 0.0}
+       :elitism                 false}
+      (apply hash-map (map #(if (string? %) (if (= % ":file-path") % (read-string %)) %) args))))))
