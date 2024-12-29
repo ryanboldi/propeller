@@ -51,10 +51,10 @@
 (def instructions
   (utils/not-lazy
    (concat
-    (get-stack-instructions #{:exec :integer :boolean :vector_integer :print})
+    (get-stack-instructions #{:exec :integer :boolean :vector_integer})
     (list :in1)
     (list 'close)
-    (list random-int 0 1 2))))
+    (list random-int 0 1 2 3 4 5 6 7 8 9))))
 
 (defn error-function 
   [argmap data individual]

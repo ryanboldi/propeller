@@ -14,7 +14,8 @@
             [propeller.push.instructions.string]
             [propeller.push.instructions.vector]
             [propeller.selection :as selection]
-            [propeller.utils :as utils]))
+            [propeller.utils :as utils]
+            [propeller.postprocess :as postprocess]))
 
 (defn report
   "Reports information each generation."
@@ -159,31 +160,14 @@
         (cond
         ;; If either the best individual on the ds passes all training cases, or best individual on full 
         ;; sample passes all training cases, we verify success on test cases and exit, succeeding
-          (if (or (and best-individual-passes-ds
-                       (<= (:total-error (error-function argmap indexed-training-data best-individual))
-                           solution-error-threshold))
-                  (and (not downsample?)
-                       (<= (:total-error best-individual)
-                           solution-error-threshold)))
-            (do (prn {:success-generation generation})
-                (prn {:successful-plushy (:plushy best-individual)})
-                (prn {:successful-program (genome/plushy->push (:plushy best-individual) argmap)})
-                (prn {:total-test-error
-                      (:total-error (error-function argmap (:testing-data argmap) best-individual))})
-                (when (:simplification? argmap)
-                  (let [simplified-plushy (simplification/auto-simplify-plushy (:plushy best-individual) error-function argmap)]
-                    (prn {:total-test-error-simplified
-                          (:total-error (error-function argmap (:testing-data argmap) {:plushy simplified-plushy}))})
-                    (prn {:simplified-plushy simplified-plushy})
-                    (prn {:simplified-program (genome/plushy->push simplified-plushy argmap)})))
+          (if (postprocess/should-end-run? generation best-individual-passes-ds evaluated-pop indexed-training-data argmap)
+            (do (
+                (postprocess/print-run-stats generation best-individual error-function argmap)
                 (if dont-end false true))
-            false)
+            false))
           (cleanup)
         ;; If we've evolved for as many generations as the parameters allow, exit without succeeding
-          (or (and (not downsample?)
-                   (>= generation max-generations))
-              (and downsample?
-                   (>= evaluations (* max-generations population-size (count indexed-training-data)))))
+          (postprocess/run-too-long? generation evaluations indexed-training-data argmap)
           (cleanup)
         ;; Otherwise, evolve for another generation
           :else (recur (inc generation)
