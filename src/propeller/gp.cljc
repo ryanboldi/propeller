@@ -160,9 +160,9 @@
         (cond
         ;; If either the best individual on the ds passes all training cases, or best individual on full 
         ;; sample passes all training cases, we verify success on test cases and exit, succeeding
-          (if (postprocess/should-end-run? generation best-individual-passes-ds evaluated-pop indexed-training-data argmap)
+          (if (postprocess/should-end-run-arc? generation best-individual-passes-ds evaluated-pop indexed-training-data argmap)
             (do (
-                (postprocess/print-run-stats generation best-individual error-function argmap)
+                (postprocess/print-run-stats-arc generation indexed-training-data evaluated-pop error-function argmap)
                 (if dont-end false true))
             false))
           (cleanup)

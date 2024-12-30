@@ -56,6 +56,15 @@
     (list 'close)
     (list random-int 0 1 2 3 4 5 6 7 8 9))))
 
+(defn error-comparator [correct-output output]
+  (if (= output :no-stack-item)
+    (repeat (count correct-output) 1000000)
+    (let [len-diff (Math/abs (- (count correct-output) (count output)))
+          element-errors (map (fn [c o] (if (and (not= c :padding) (not= o :padding)) (if (= c o) 0 1) 1000000)) 
+                            correct-output
+                            (concat output (repeat len-diff :padding)))]
+      element-errors)))
+
 (defn error-function 
   [argmap data individual]
   (let [program (genome/plushy->push (:plushy individual) argmap)
@@ -69,14 +78,7 @@
                          (:step-limit argmap))
                         :vector_integer))
                      inputs)
-        errors (mapcat (fn [correct-output output]
-                        (if (= output :no-stack-item)
-                          (repeat (count correct-output) 1000000)
-                          (let [len-diff (Math/abs (- (count correct-output) (count output)))
-                                element-errors (map (fn [c o] (if (and (not= c :padding) (not= o :padding)) (if (= c o) 0 1) 1000000)) 
-                                                  correct-output
-                                                  (concat output (repeat len-diff :padding)))]
-                            element-errors)))
+        errors (mapcat error-comparator
                       correct-outputs 
                       outputs)]
     (assoc individual
@@ -102,6 +104,7 @@
      (merge
       {:instructions            instructions
        :error-function          error-function
+       :error-comparator        error-comparator
        :training-data           train-data
        :testing-data            test-data
        :case-t-size             (count train-data)
