@@ -41,7 +41,7 @@
           best-individual-passes-ds true
           evaluated-pop [{:total-error 0} {:total-error 1} {:total-error 0}]
           indexed-training-data [{:input 1 :output 1}]
-          argmap {:proportion 0.5}]
+          argmap {:proportion-solving-to-end 0.5}]
       (t/is (pp/should-end-run-arc? generation best-individual-passes-ds evaluated-pop indexed-training-data argmap)))))
 
 (t/deftest print-run-stats-test

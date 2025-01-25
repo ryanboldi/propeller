@@ -1,21 +1,21 @@
 (ns propeller.gp
   "Main genetic programming loop."
-  (:require [clojure.string]
-            [propeller.genome :as genome]
-            [propeller.simplification :as simplification]
-            [propeller.variation :as variation]
-            [propeller.downsample :as downsample]
-            [propeller.push.instructions.bool]
-            [propeller.push.instructions.character]
-            [propeller.push.instructions.code]
-            [propeller.push.instructions.input-output]
-            [propeller.push.instructions.numeric]
-            [propeller.push.instructions.polymorphic]
-            [propeller.push.instructions.string]
-            [propeller.push.instructions.vector]
-            [propeller.selection :as selection]
-            [propeller.utils :as utils]
-            [propeller.postprocess :as postprocess]))
+  (:require
+   [clojure.string]
+   [propeller.downsample :as downsample]
+   [propeller.genome :as genome]
+   [propeller.postprocess :as postprocess]
+   [propeller.push.instructions.bool]
+   [propeller.push.instructions.character]
+   [propeller.push.instructions.code]
+   [propeller.push.instructions.input-output]
+   [propeller.push.instructions.numeric]
+   [propeller.push.instructions.polymorphic]
+   [propeller.push.instructions.string]
+   [propeller.push.instructions.vector]
+   [propeller.selection :as selection]
+   [propeller.utils :as utils]
+   [propeller.variation :as variation]))
 
 (defn report
   "Reports information each generation."
@@ -87,7 +87,8 @@
          :single-thread-mode          false ; if true, don't use multithreading
          :solution-error-threshold    0 ; maximum total error for solutions
          :ssx-not-bmx                 false ; for bmx, swap with segment with same sequence index, not by best match
-         :step-limit                  1000 ; limit of Push interpreter steps in a Push program evaluation 
+         :step-limit                  1000 ; limit of Push interpreter steps in a Push program evaluation  
+         :starting-pop                nil
          :testing-data                [] ; must be provided unless there is no testing data
          :tournament-size             5 ; for torunament selection, the number of individuals in each tournament
          :training-data               [] ; must be provided
@@ -103,7 +104,7 @@
   [non-default-argmap]
   (let [argmap (fill-defaults non-default-argmap)
         {:keys [population-size max-generations error-function solution-error-threshold dont-end
-                downsample? ds-parent-rate ds-parent-gens ids-type]} argmap]
+                downsample? ds-parent-rate ds-parent-gens ids-type starting-pop]} argmap]
   ;; print starting args
     (prn {:starting-args (update (update argmap :error-function str)
                                  :instructions
@@ -113,10 +114,12 @@
   ;;
     (loop [generation 0
            evaluations 0
-           population (utils/pmapallv
-                       (fn [_] {:plushy (genome/make-random-plushy argmap)})
-                       (range population-size)
-                       argmap)
+           population (if starting-pop ;if provided a starting population, use that instead
+                        starting-pop
+                        (utils/pmapallv
+                         (fn [_] {:plushy (genome/make-random-plushy argmap)})
+                         (range population-size)
+                         argmap))
            indexed-training-data (if downsample?
                                    (downsample/assign-indices-to-data (downsample/initialize-case-distances argmap) argmap)
                                    (:training-data argmap))]
@@ -161,10 +164,9 @@
         ;; If either the best individual on the ds passes all training cases, or best individual on full 
         ;; sample passes all training cases, we verify success on test cases and exit, succeeding
           (if (postprocess/should-end-run-arc? generation best-individual-passes-ds evaluated-pop indexed-training-data argmap)
-            (do (
-                (postprocess/print-run-stats-arc generation indexed-training-data evaluated-pop error-function argmap)
-                (if dont-end false true))
-            false))
+            (do ((postprocess/print-run-stats-arc generation indexed-training-data evaluated-pop error-function argmap)
+                 (if dont-end false true))
+                false))
           (cleanup)
         ;; If we've evolved for as many generations as the parameters allow, exit without succeeding
           (postprocess/run-too-long? generation evaluations indexed-training-data argmap)

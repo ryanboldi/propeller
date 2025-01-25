@@ -1,4 +1,4 @@
-(ns propeller.problems.PSB2.basement
+(ns propeller.problems.PSB2H.basement
   "BASEMENT from PSB2
 
  Given a vector of integers, return the first
@@ -7,24 +7,31 @@
 
  Source: https://arxiv.org/pdf/2106.06086.pdf"
   {:doc/format :markdown}
-  (:require [psb2.core :as psb2]
-            [propeller.genome :as genome]
-            [propeller.push.interpreter :as interpreter]
-            [propeller.utils :as utils]
-            [propeller.push.instructions :refer [get-stack-instructions]]
-            [propeller.push.state :as state]
-            [propeller.tools.math :as math]
-            [propeller.gp :as gp]
-            #?(:cljs [cljs.reader :refer [read-string]])))
+  (:require
+   #?(:cljs [cljs.reader :refer [read-string]])
+   [clojure.data.json :as json]
+   [propeller.genome :as genome]
+   [propeller.gp :as gp]
+   [propeller.push.instructions :refer [get-stack-instructions]]
+   [propeller.push.interpreter :as interpreter]
+   [propeller.push.state :as state]
+   [propeller.tools.math :as math]
+   [propeller.utils :as utils]
+   [psb2.core :as psb2]))
 
-;find and load the final populations from the hypothesis driven search, and use that as the starting population
-(defn load-results-file [hyp-num]
-  (let [results-file (str "../results/basement-hypotheses/" hyp-num ".out")]
-    (->> results-file
-         (slurp))))
 
-(load-results-file 1)
+;load train data from json file
 
+
+(def train-data (map #(json/read-str % :key-fn keyword) (line-seq (clojure.java.io/reader "data/datasets/basement/basement-hyp0.json"))))
+
+train-data
+
+(defn load-hyp-data [hyp-num]
+  (map #(json/read-str % :key-fn keyword) (line-seq (clojure.java.io/reader (str "data/datasets/basement/basement-hyp" hyp-num ".json")))))
+
+(load-hyp-data 0)
+(load-hyp-data 1)
 
 (def train-and-test-data "Data taken from https://zenodo.org/record/5084812" (psb2/fetch-examples "data" "basement" 200 2000))
 
@@ -79,20 +86,25 @@
   arguments with defaults that can be overridden from the command line
   or through a passed map."
   [& args]
-  (gp/gp
-   (merge
-    {:instructions            instructions
-     :error-function          error-function
-     :training-data           (:train train-and-test-data)
-     :testing-data            (:test train-and-test-data)
-     :max-generations         300
-     :population-size         1000
-     :max-initial-plushy-size 250
-     :step-limit              2000
-     :parent-selection        :lexicase
-     :tournament-size         5
-     :umad-rate               0.1
-     :variation               {:umad 1.0 :crossover 0.0}
-     :elitism                 false}
-    (apply hash-map (map #(if (string? %) (read-string %) %) args)))))
-      (apply hash-map (map #(if (string? %) (read-string %) %) args)))))
+  (let [hyp-num (Integer/parseInt (first args))
+        train-data (load-hyp-data hyp-num)
+        test-data (load-hyp-data hyp-num)
+        args (rest args)]
+    (gp/gp
+     (merge
+      {:instructions            instructions
+       :error-function          error-function
+       :training-data           train-data
+       :testing-data            test-data
+       :max-generations         300
+       :population-size         1000
+       :max-initial-plushy-size 250
+       :step-limit              2000
+       :parent-selection        :lexicase
+       :tournament-size         5
+       :umad-rate               0.1
+       :downsample?             true
+       :downsample-rate         0.2
+       :variation               {:umad 1.0 :crossover 0.0}
+       :elitism                 false}
+      (apply hash-map (map #(if (string? %) (read-string %) %) args))))))

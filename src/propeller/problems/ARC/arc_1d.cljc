@@ -119,5 +119,6 @@
        :tournament-size         5
        :umad-rate               0.1
        :variation               {:umad 1.0 :crossover 0.0}
-       :elitism                 false}
+       :elitism                 false
+       :proportion-solving-to-end 0.5}
       (apply hash-map (map #(if (string? %) (if (= % ":file-path") % (read-string %)) %) args))))))

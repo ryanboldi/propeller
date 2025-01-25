@@ -11,21 +11,17 @@
 
 (defn majority-voting [voting-population testing-data argmap]
   "given a list of individuals and data, returns whether the most frequent output is the correct one"
-  (let [error-function (:error-function argmap)
-        error-comparator (:error-comparator argmap)
+  (let [{:keys [error-function error-comparator]} argmap
         plushies (map :plushy voting-population)
-        behaviors (map (fn [plushy] (:behaviors (error-function argmap testing-data plushy))) plushies)
-        true-outputs (map (fn [i] (get i :output)) testing-data)
-        behavior->correct (fn [behavior true-outputs] (map error-comparator behavior true-outputs))
-        correct-or-not (map (fn [behavior] (behavior->correct behavior true-outputs)) behaviors)
-        _ (prn correct-or-not)
-        transposed-correct-or-not (apply map list correct-or-not)
-        _ (prn transposed-correct-or-not)
-        all-scores (count (first transposed-correct-or-not))
-        _ (prn all-scores)
-        score-counts (map (fn [column] (count (filter true? column))) transposed-correct-or-not)
-        _ (prn score-counts)]
-        (map #(> % (* all-scores 0.5)) score-counts)))
+        behaviors (->> plushies
+                      (map #(-> (error-function argmap testing-data %)
+                               :behaviors)))
+        true-outputs (map :output testing-data)
+        correct-or-not (->> behaviors
+                           (map #(map error-comparator % true-outputs)))
+        transposed-votes (apply map list correct-or-not)
+        vote-threshold (/ (count (first transposed-votes)) 2)]
+    (map #(> (count (filter true? %)) vote-threshold) transposed-votes)))
 
 (defn get-all-successful-solutions [evaluated-pop]
     "gets all solutions with a zero error"
@@ -55,9 +51,8 @@
         (> individuals-solving (* proportion (count errors)))))
 
 (defn should-end-run-arc? [generation best-individual-passes-ds evaluated-pop indexed-training-data argmap]
-    (let [proportion (:proportion argmap)]
+    (let [proportion (:proportion-solving-to-end argmap)]
         (proportion-solves? generation evaluated-pop proportion)))
-
 
 
 (defn print-run-stats [generation best-individual error-function argmap]
@@ -74,12 +69,16 @@
                     (prn {:simplified-plushy simplified-plushy})
                     (prn {:simplified-program (genome/plushy->push simplified-plushy argmap)}))))
 
+(defn number-of-falses [coll]
+    (count (filter false? coll)))
+
 (defn print-run-stats-arc [generation indexed-training-data evaluated-pop error-function argmap]
     (prn {:success-generation generation})
     ;(prn {:successful-plushy (:plushy best-individual)})
     ;(prn {:successful-program (genome/plushy->push (:plushy best-individual) argmap)})
     (prn {:total-test-error
-      (majority-voting evaluated-pop (:testing-data argmap) argmap)}))
+      (number-of-falses 
+        (majority-voting evaluated-pop (:testing-data argmap) argmap))}))
 ; TODO: add simplification for all solving individuals before majority voting
 
 (defn run-too-long? [generation evaluations indexed-training-data argmap]
